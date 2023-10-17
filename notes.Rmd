@@ -1,0 +1,55 @@
+---
+title: "Notes"
+author: "Juan Rocha"
+output: html_document
+---
+
+Skill networks analysis as proxy of adaptive capacity in:
+
+- Sweden
+- USA
+- Canada
+- Norway
+- Finland
+
+Calculate the economic complexity index based on labour statistics at the lower possible level of administrative units (1-regional, 2-municipality), and the deeper possible classification (3 or 4 digits).
+
+Each country has a folder and files downloaded from their respective statistical bureau under the `data/` folder. Each country has labour statistics, but we need to match skills with the ONET database from the US. Carla has done already some of the manual matching between databases, so we can calculate the skill network for each geographical unit.
+
+- Ask Carla to clarify on the README file how to get the data
+
+- Discussion point: there is some noise on the matching between countries classification because they follow different standards. We assume that the skills on matches that are not exact are similar across classifications. But there is no way to measure that error. There are many-to-many matches. For example the finish classification of agricultural workers is way more detailed, with ~20 categories that are grouped in 2 in onet (see farmers and fishers)
+
+## To-Do's
+
+- Construct the map of case studies and intersect with the appropriate level of data for each country e.g. municipality / region. How many datapoints can we compare?
+- `AC ~ ECI_jobs + ECI_skills`
+
+## Sweden
+
+- One can project the ONET matrix (professions vs skills) for each region in Sweden by:
+    - Cities vs Skills = $CS(c,s) = \Sigma_{j \in J} bls(c,j) * onet(j,s)$ where bls is the bureau of labour statistics in the US which reports cities and jobs per year.
+    - Cities vs jobs by transposing onet.
+    - You need the order of rows and columns the same between vectors and matrices!
+    - Either way: calculate RCA to show effective jobs or skills per city
+
+Future research: with the Swedish dataset you can study disparities in adaptive capacity across gender.
+
+**Data sources**:
+
+The [Swedish Occupational Register](https://www.scb.se/en/finding-statistics/statistics-by-subject-area/labour-market/employment-and-working-hours/the-swedish-occupational-register-with-statistics/#_TablesintheStatisticalDatabase) with statistics maintains data tables of employees per sex per region using the swedish standard occupation classification from 2012. The SOC is different from the one in the US, so we need some work to match them.
+
+The public data tables are aggregated at national level with the 3 and 4 digit classification, and for regional level only 3 digits. Years available include 2019-2021.
+
+The 4-digit (430 occupations) data is available for 2014-18, but at region (N=21 counties) level. The 3-digit data has 149 occupations in 289 municipalities, but only data available for 2009. What should we do? high res one year, or low res many years?
+
+
+
+## Readings
+
+**Alabdulkareem et al 2018**
+
+- "suppose we use wage as a proxy for skill—that is, high-wage occupations are considered high-skilled occupations, etc. Then, if we find that growth in employment in middle-wage occupa- tions is slower than that in low- and high-wage occupations, we may conclude that the demand for high and low skills is driving economic inequality"
+- O*NET used: 161 skills, 672 occupations recognaized in the Standard Occupational Classifcation System (SOC). We have different numbers (>800 ocupations, only 35 skills). The skills are normalized to [0:1]. Same as in Moro's paper.
+- They assessed occupational transitions by matching surveys of people (non-annonymized) that changed jobs from 2014 to 2015, rendering 5400 occupational transitions. We wont be able to do so.
+

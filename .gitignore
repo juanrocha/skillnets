@@ -9,3 +9,11 @@
 *.jpg
 *.bib
 *.xlsx
+*.docx
+*.txt
+*.Rda
+*.csv
+.DS_Store
+*.Rproj
+*.html
+*.json

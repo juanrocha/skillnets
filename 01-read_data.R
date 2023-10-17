@@ -5,6 +5,8 @@ library(tidyverse)
 library(tictoc)
 library(network)
 
+## the formulas used here follow the notation of Alabdulkareem et al 2018.
+## Moro has similar calculations but different names.
 
 dat <- readxl::read_xlsx("data/Skill_ONET.xlsx") %>%
   janitor::clean_names()
@@ -14,15 +16,22 @@ dat %>% pull(title) %>% unique() # 873 professions
 dat |> pull(date) |> unique() |> lubridate::parse_date_time(orders = "my") |> sort() # 10yrs
 
 # matrix of professions vs skills by importance
+jobs <- dat |> select(title) |> arrange((title)) |> unique()
+
 mat <- dat %>%
   filter(scale_name == "Importance") %>%
   select(title, element_name, data_value) %>%
+  # added a normalization step here following previous papers
+  mutate(data_value = data_value / max(data_value)) |>
+  ## this guarantee alphabethical order in both dimensions
   arrange(title, element_name) %>%
   pivot_wider(names_from = element_name, values_from = data_value) %>%
   select(-title) %>%
   as.matrix()
 
 
+dim(mat) # 873 professions, 35 skills
+range(mat)
 ## manually calculate relative competitive advantage, rca
 
 rca <- matrix(nrow = nrow(mat), ncol = ncol(mat))
