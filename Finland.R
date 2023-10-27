@@ -1,6 +1,8 @@
 library(tidyverse)
 library(tictoc)
 
+#### Read data ####
+
 # load onet
 load("data/onet.Rda") # 34MB
 
@@ -135,6 +137,9 @@ prblm <- fin_onet |> filter(is.na(`Active Listening`)) |>
   select(onet:occupation)
 # calculate RCA
 
+
+#### Skillscape ####
+
 rca <- matrix(nrow = nrow(fin_mat), ncol = ncol(fin_mat))
 # This follows the notation of Alabdulkareem 2018, where the s' is interpreted as the complement to s.
 tic()
@@ -221,7 +226,27 @@ e_skills <- svd(M_skills)
 eci_jobs <-( e_jobs$d - mean(e_jobs$d)) / sd(e_jobs$d)
 eci_skills <- (e_skills$d - mean(e_skills$d) / sd(e_skills$d))
 
-#### This was done on the skillscape, now do it on the labour market space ####
+#### Occupations space ####
+## Matrix for Finland
+fin2019 <- dat |>
+  select(-isco4_name_sv, -code_name_isco4_en, -code_name_isco4_sv) |>
+  mutate(employed_persons = case_when(employed_persons == "…" ~ "0",
+                                      TRUE ~ employed_persons)) |>
+  mutate(employed_persons = as.numeric(employed_persons)) |>
+  filter(!str_detect(code_isco4, "\\d\\.")) |>
+  # negating the following results in army workers, but they do not exist on onet skills
+  filter(code_isco4 %in% df_match$code_isco4) |>
+  select(-municipality_code, -municipality_name_sv) |>
+  #pivot_wider(names_from = municipality_name_en, values_from = employed_persons, values_fill = 0) |>
+  filter(year == 2019) |>
+  pivot_wider(names_from = municipality_name_en, values_from = employed_persons, values_fill = 0)
+
+job_mat <- as.matrix(fin2019 |> select(-c(1:3)))
+
+dim(job_mat) # 413 jobs, 309 municipalities
+
+
+
 
 
 
