@@ -1,0 +1,440 @@
+---
+title: "Exploring Finland data"
+author: "Juan Rocha"
+date: "December 2023"
+output:
+    html_document:
+      theme:
+        bootswatch: cosmo
+        code_font:
+            google: Fira Code
+      df_print: paged
+      code_folding: hide
+      toc: true
+      toc_float:
+        collapsed: true
+        smooth_control: true
+      toc_depth: 3
+      fig_caption: true
+      highlight: pygments
+      self_contained: false
+      lib_dir: libs
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(fs)
+library(tictoc)
+library(patchwork)
+```
+
+
+This notebook explores the labour statistics datasets for Finland. First import 
+the data:
+
+### Data import
+
+```{r}
+# load onet
+load("data/onet.Rda") # 34MB
+
+tic()
+dat <- readxl::read_xlsx(
+  path = "data/Finland/Municipality_4digits_2010_2019_FIN.xlsx",
+  skip = 6)
+toc() #17s
+```
+
+```{r}
+skimr::skim(dat)
+```
+
+We have data for 309 municipalities, 459 occupations, and years 2010-19
+
+```{r}
+codes_en <- dat |>
+  select(code_isco4, isco4_name_en) |>
+  unique() # 459 professionss
+codes_en |> print(n=50)
+```
+There are 37 occupations that were not coded at 4-digit depth
+
+### Matching
+
+We then need to match the occupations data with ONET data on skills
+
+```{r}
+df_match <- readxl::read_xlsx("data/Finland/finaland onet.xlsx", sheet = 3) |>
+  janitor::clean_names()
+
+df_match <- df_match |> select(-x4) |>
+  filter(!is.na(onet)) |>
+  rename(code_isco4 = isco_code_4_digits, ) |>
+  mutate(code_isco4  = str_remove_all(code_isco4 , pattern = "\'"))
+```
+
+Carla made mistakes with some occupations that do not match the version of ONET we have.
+Hence I have relabel them manually below:
+
+```{r}
+#### Corrections ####
+#### to find out useful matches
+#### onet_occ |> filter(str_detect(title, "Mining"))
+df_match[df_match$occupation == "Real estate agents and property managers", "onet"] <- "11-9141.00"
+df_match[df_match$occupation == "Business services and administration managers not elsewhere classified", "onet"] <- "11-1021.00"
+df_match[df_match$occupation == "Managing directors and chief executives", "onet"] <- "11-1011.00"
+df_match[df_match$occupation == "Senior government officials", "onet"] <- "13-1041.04"
+df_match[df_match$occupation == "Legislators", "onet"] <- "23-1011.00" #lawyers
+df_match[df_match$occupation == "Sports, recreation and cultural centre managers", "onet"] <- "27-2021.00"
+df_match[df_match$occupation == "Physicists and astronomers", "onet"] <- "19-2012.00"
+df_match[df_match$occupation == "Mining engineers, metallurgists and related professionals", "onet"] <- "17-2151.00"
+df_match[df_match$occupation == "Engineering professionals not elsewhere classified", "onet"] <- "17-3025.00"
+df_match[df_match$occupation == "Landscape architects", "onet"] <- "17-1012.00"
+df_match[df_match$occupation == "Generalist medical practitioners", "onet"] <- "29-1216.00"
+df_match[df_match$occupation == "Specialist medical practitioners", "onet"] <- "19-1042.00"
+df_match[df_match$occupation == "Traditional and complementary medicine professionals", "onet"] <- "31-9092.00"
+df_match[df_match$occupation == "Paramedical practitioners", "onet"] <- "29-1229.04"
+df_match[df_match$occupation == "Dieticians and nutritionists", "onet"] <- "29-1031.00"
+df_match[df_match$occupation == "Audiologists and speech therapists", "onet"] <- "29-1181.00"
+df_match[df_match$occupation == "Early childhood educators", "onet"] <- "25-2011.00"
+df_match[df_match$occupation == "Software developers", "onet"] <- "15-1253.00"
+df_match[df_match$occupation == "Web and multimedia developers", "onet"] <- "15-1254.00"
+df_match[df_match$occupation == "Software and applications developers and analysts not elsewhere classified", "onet"] <- "15-1251.00"
+df_match[df_match$occupation == "Database designers and administrators", "onet"] <- "15-1242.00"
+df_match[df_match$occupation == "Computer network professionals", "onet"] <- "15-1241.00"
+df_match[df_match$occupation == "Psychologists", "onet"] <- "19-3033.00"
+df_match[df_match$occupation == "Social work and counselling professionals", "onet"] <- "19-3034.00"
+df_match[df_match$occupation == "Chemical and physical science technicians", "onet"] <- "19-4031.00"
+df_match[df_match$occupation == "Medical imaging and therapeutic equipment technicians", "onet"] <- "29-2012.00"
+df_match[df_match$occupation == "Valuers and loss assessors", "onet"] <- "13-2023.00"
+df_match[df_match$occupation == "Government social benefits officials", "onet"] <- "43-4061.00"
+df_match[df_match$occupation == "Information and communications technology operations technicians", "onet"] <- "11-3021.00"
+df_match[df_match$occupation == "Information and communications technology user support technicians", "onet"] <- "15-1244.00"
+df_match[df_match$occupation == "Computer network and systems technicians", "onet"] <- "15-1231.00"
+df_match[df_match$occupation == "Web technicians", "onet"] <- "15-1241.00"
+df_match[df_match$occupation == "Medical and pathology laboratory technicians", "onet"] <- "29-2012.00"
+df_match[df_match$occupation == "Legislators", "onet"]
+
+```
+
+Occupations and municipalities matrix for Finland:
+
+```{r}
+dat |>
+  select(-isco4_name_sv, -code_name_isco4_en, -code_name_isco4_sv) |>
+  mutate(employed_persons = case_when(employed_persons == "…" ~ "0",
+                                      TRUE ~ employed_persons)) |>
+  mutate(employed_persons = as.numeric(employed_persons)) |>
+  filter(!str_detect(code_isco4, "\\d\\.")) |>
+  # negating the following results in army workers, but they do not exist on onet skills
+  filter(code_isco4 %in% df_match$code_isco4) |>
+  select(-municipality_code, -municipality_name_sv) |>
+  #pivot_wider(names_from = municipality_name_en, values_from = employed_persons, values_fill = 0) |>
+  filter(year == 2019) |>
+  ggplot(aes(code_isco4, municipality_name_en)) +
+  geom_tile(aes(fill = employed_persons)) +
+  scale_fill_viridis_c() +
+  theme(axis.text = element_blank())
+```
+
+### Onet reduced for Finland
+
+**Decision point:** Do we duplicate rows in onet, or keep as is and reduce rows in
+Finland data? I think row duplication is nicer because it retains the original finish
+classification. It will create jobs with the same complexity, but that happens in any case in raw onet if two jobs have the same skill vector. One strong reason for going this pathway is to keep the same dimensions between this `fin_onet` data and the Finish data `dat`.
+
+```{r}
+fin_onet <- onet |>
+  filter(scale_id == "IM") |>  # retain only importance scores
+  select(-scale_id, -scale_name, onet = o_net_soc_code, -c(n:domain_source)) |>
+  #filter(onet %in% df_match$onet) |> # filter reduces to matches
+  # we lose occupations the moment we merge different jobs on the finish classification
+  # under the same onet codes. It is unavoidable. To avoid that use right_join
+  select(-title, -element_id) |> #pull(data_value) |> range()
+  mutate(data_value = scales::rescale(data_value, to = c(0,1))) |>
+  group_by(onet, element_name) |>
+  # for combinations with more than one value we average
+  summarize(value = mean(data_value)) |>
+  pivot_wider(names_from = element_name, values_from = value, values_fill = 0) |>
+  # rigth join keeps all rows of df_match, so duplicate vectors for finish occupations
+  # with the same onet code.
+  right_join(df_match) |>
+  select(onet, code_isco4, occupation, 4:last_col())
+```
+
+Create a matrix of jobs and skills:
+
+```{r}
+fin_mat <- fin_onet |> ungroup() |> select(-c(onet:occupation)) |>
+  as.matrix()
+dim(fin_mat)
+```
+
+We have 436 occupations, 174 skills for the analysis. But bear in mind 293 unique ONET occupations.
+
+## Skillscape
+
+Lets calculate the revealed comparative advantage (RCA). There are different formulas
+and notation for calculating it. I have compared them and check that they are equivalent.
+For simplicity here I'm using Hidalgo 2021 notation, but other tests are found in `Finland.R`:
+
+```{r}
+# create a matrix
+rca2 <- matrix(nrow = nrow(fin_mat), ncol = ncol(fin_mat))
+tic()
+for (i in 1:nrow(fin_mat)){
+  for (j in 1:ncol(fin_mat)){
+    rca2[i,j] <- (fin_mat[i,j] * sum(fin_mat) )/ (sum(fin_mat[,j]) * sum(fin_mat[i,]))
+  }
+}
+toc() #20s
+
+# make a binary version:
+rca01 <- rca2>1
+```
+
+Now let's calculate effective use of skills ($\phi$ or $\theta$) aka. proximity:
+
+```{r}
+phi <- matrix(ncol = ncol(fin_mat), nrow = ncol(fin_mat)) # cols are skills
+
+tic()
+for (i in 1:nrow(phi)){
+  for (j in 1:ncol(phi)){
+    phi[i,j] <- (sum(rca01[,i] * rca01[,j] ) )/ (max(sum(rca01[,i]), sum(rca01[,j])))
+  }
+}
+toc()
+```
+
+Then, we calculate relatedness:
+
+```{r}
+w <- rca01 %*% phi / colSums(phi)
+```
+
+and the transition probabilities of jobs and skills:
+
+```{r}
+M_jobs <- matrix(ncol = nrow(rca01), nrow = nrow(rca01))
+M_skills <- matrix(ncol = ncol(rca01), nrow = ncol(rca01))
+
+tic()
+for (i in 1:nrow(M_jobs)){
+  for (j in 1:ncol(M_jobs)){
+    M_jobs[i,j] <- sum( (rca01[i,] * rca01[j, ]) / ( sum(rca01[i, ]) * colSums(rca01) ) )
+  }
+}
+toc() # 21s
+
+# M_jobs and M_skills should be a transition probability ranging 0:1
+
+tic()
+for (i in 1:nrow(M_skills)){
+  for (j in 1:ncol(M_skills)){
+    M_skills[i,j] <- sum( (rca01[,i] * rca01[,j]) / ( sum(rca01[, i]) * rowSums(rca01) ) )
+  }
+}
+toc() # 8s
+```
+
+Testing they are true transition probabilities:
+
+```{r}
+range(M_skills)
+rowSums(M_skills) |> 
+  as.logical() |> 
+  all() # all ones as expected
+rowSums(M_jobs) |> 
+  as.logical() |> 
+  all() # all ones as expected
+```
+
+Some visualizations: the probability density function of changing jobs, and its matrix. Remember this is calculating according to the skills required to perform a job, and how with the same skills people could in principle jump from one job to another.
+
+```{r}
+(plot(density(M_jobs))) 
+
+(spectralGP::image_plot(
+  t(M_jobs),
+  nlevel = 10, legend.width = 0.025, col = hcl.colors(10, "YlOrRd", rev = TRUE))
+)
+```
+
+
+
+Economic complexity index:
+
+```{r}
+e_jobs <- svd(M_jobs)
+e_skills<- svd(M_skills)
+
+eci_jobs <- (e_jobs$d - mean(e_jobs$d)) / sd(e_jobs$d)
+eci_skills <- (e_skills$d - mean(e_skills$d) / sd(e_skills$d))
+```
+
+
+However, that jump depends whether the job market has something to offer in a particular place. So lets see the other side of the coin on the occupation space.
+
+## Occupations space
+
+We repeat the same steps but now using a matrix of occupations and municipalities.
+
+```{r}
+## Matrix for Finland
+fin2019 <- dat |>
+  select(-isco4_name_sv, -code_name_isco4_en, -code_name_isco4_sv) |>
+  mutate(employed_persons = case_when(employed_persons == "…" ~ "0",
+                                      TRUE ~ employed_persons)) |>
+  mutate(employed_persons = as.numeric(employed_persons)) |>
+  filter(!str_detect(code_isco4, "\\d\\.")) |>
+  # negating the following results in army workers, but they do not exist on onet skills
+  filter(code_isco4 %in% df_match$code_isco4) |>
+  select(-municipality_code, -municipality_name_sv) |>
+  #pivot_wider(names_from = municipality_name_en, values_from = employed_persons, values_fill = 0) |>
+  filter(year == 2019) |>
+  group_by(code_isco4) |>
+  # remove zero sum rows in the matrix
+  filter(sum(employed_persons) > 0) |>
+  ungroup() |> group_by(municipality_name_en) |>
+  filter(sum(employed_persons) > 0) |>
+  # working on log-units
+  mutate(employed_persons = log1p(employed_persons)) |>
+  ungroup() |>
+  pivot_wider(
+    names_from = municipality_name_en, values_from = employed_persons, values_fill = 0)
+
+```
+
+We get 400 jobs and 308 municipalites after removing rows and columns where the sum is zero. This has to be done, otherwise the next steps does not make sense due to division by zero.
+
+```{r}
+job_mat <- as.matrix(fin2019 |> select(-c(1:3)))
+
+dim(job_mat) # 400 jobs, 308 municipalities, 13 jobs and 1 town removed due to zeroes. The municipality removed is Sottunga (309)
+range(job_mat) # no NAs
+```
+
+Calculating the revealed comparative advantage (RCA):
+
+```{r}
+## RCA ##
+## This follows the notation of Hidalgo 2021
+rca <- matrix(nrow = nrow(job_mat), ncol = ncol(job_mat))
+tic()
+for (i in 1:nrow(job_mat)){
+  for (j in 1:ncol(job_mat)){
+    rca[i,j] <- (job_mat[i,j] * sum(job_mat) )/ (sum(job_mat[,j]) * sum(job_mat[i,]))
+  }
+}
+toc() #50s
+
+rca01 <- rca>1
+```
+
+Effective use or proximity:
+```{r}
+## Effective use = phi or theta aka proximity
+phi <- matrix(ncol = ncol(job_mat), nrow = ncol(job_mat)) # cols are towns
+tic()
+for (i in 1:nrow(phi)){
+  for (j in 1:ncol(phi)){
+    phi[i,j] <- (sum(rca01[,i] * rca01[,j] ) )/ (max(sum(rca01[,i]), sum(rca01[,j])))
+  }
+}
+toc() # 2s
+```
+
+Relatedness and the transition probabilities:
+
+```{r}
+## Relatedness:
+w <- rca01 %*% phi / colSums(phi)
+
+M_towns <- matrix(ncol = ncol(rca01), nrow = ncol(rca01))
+M_jobs2 <- matrix(ncol = nrow(rca01), nrow = nrow(rca01))
+
+tic()
+for (i in 1:nrow(M_towns)){
+  for (j in 1:ncol(M_towns)){
+    M_towns[i,j] <- sum( (rca01[,i] * rca01[,j]) / ( sum(rca01[, i]) * rowSums(rca01) ) )
+  }
+}
+toc() # 27s
+
+# M_x should be a transition probability ranging 0:1
+
+tic()
+for (i in 1:nrow(M_jobs2)){
+  for (j in 1:ncol(M_jobs2)){
+    M_jobs2[i,j] <- sum( (rca01[i,] * rca01[j, ]) / ( sum(rca01[i, ]) * colSums(rca01) ) )
+  }
+}
+toc() # 40s
+```
+
+Checks:
+
+```{r}
+range(M_jobs2)
+rowSums(M_towns) |> as.logical() |> all() # all ones as expected
+rowSums(M_jobs2) |> as.logical() |> all() # all ones as expected
+
+```
+
+Economic complexity index:
+
+```{r}
+e_jobs2 <- svd(M_jobs2)
+e_towns <- svd(M_towns)
+
+eci_jobs2 <- (e_jobs2$d - mean(e_jobs2$d)) / sd(e_jobs2$d)
+eci_towns <- (e_towns$d - mean(e_towns$d) / sd(e_towns$d))
+```
+
+Visualizations:
+
+```{r}
+## plot the transition probability of jobs:
+spectralGP::image_plot(
+  t(M_jobs2),
+  nlevel = 10, legend.width = 0.025, col = hcl.colors(10, "YlOrRd", rev = TRUE))
+
+tibble(
+  towns = colnames(job_mat)[order(colSums(rca01), decreasing = TRUE)],
+  eci_towns = eci_towns
+) |>
+  arrange(eci_towns) |>
+  mutate(towns = as_factor(towns)) |>
+  slice_max(n=25, order_by = eci_towns) |>
+  ggplot(aes(eci_towns, towns)) +
+  geom_point()
+
+
+tibble(
+  occupation = fin2019$isco4_name_en[order(rowSums(rca01), decreasing = TRUE)], # fin2019$isco4_name_en are the rownames of job_mat
+  eci_jobs2 = eci_jobs2
+) |>
+  arrange(eci_jobs2) |>
+  mutate(occupation = as_factor(occupation)) |>
+  slice_max(n=50, order_by = eci_jobs2) |>
+  ggplot(aes(eci_jobs2, occupation)) +
+  geom_point() +
+  scale_x_log10()
+
+
+```
+
+Following Hidalgo 2021, I'm recovering the ordering of professions by what he calls "diversity" and "ubiquity". But that's nothing else than the column and row sums of the `rca01` matrix. For a profession, the number of places where is is advantageous to be professional in that; and for a place, the number of professions that give the place advantage.
+
+I find the transition probabilities a much more interesting finding.
+
+```{r}
+# tibble(
+#   eci_jobs = eci_jobs,
+#   eci_jobs2 = eci_jobs2
+# ) |> ggplot(aes(eci_jobs, eci_jobs2)) +
+#   geom_point()
+```
+

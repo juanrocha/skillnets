@@ -4,13 +4,35 @@ author: "Juan Rocha"
 output: html_document
 ---
 
+
+**240808**
+There are errors on my code trying to reproduce ECI from matrix operations using for loops. The
+pacakge "EconGeo" of Piere-Alexander Balland has now functions that can correct my mistakes. Updating all, but be aware that some fuctions from EconGeo uses one mode projection matrixes, while the original formulations in Hidalgo and other papers I was using were using the two-mode projections. I will keep the old code at the end of the scrip commented out for archival purposes, so I don't make the same mistakes again.
+
+**240325**
+
+- USA analysis: only works for Fairbanks and Anchorage, the US dataset only includes metropolitan areas. Looking into possibilities wiht local authorities.
+- Norway analysis: same issue, 4-digit available at national level but municipality level only 1 digit available.
+
+**240306**: Canada script ready: analysis at regional scale with 10 regions, 501 occupations.
+
+
+## Meeting with Sirkku:
+
+- Migration matters (inflow outflow of workers) but we are not able to see it here.
+- How to detect "rotten banannas", places that have stagnated in development / social issues. **Are places with low ECI / diversity having more emigration.**
+- If the arctic is warming faster, do we see differences on job markets between N / S in Sweden and Finland: number of people employed?
+
+
+## Previous notes
+
 Skill networks analysis as proxy of adaptive capacity in:
 
-- Sweden
+- ~~Sweden~~
 - USA
-- Canada
+- ~~Canada~~
 - Norway
-- Finland
+- ~~Finland~~
 
 Calculate the economic complexity index based on labour statistics at the lower possible level of administrative units (1-regional, 2-municipality), and the deeper possible classification (3 or 4 digits).
 
@@ -38,6 +60,7 @@ Future research: with the Swedish dataset you can study disparities in adaptive 
 ## Canada
 
 - Carla did not download the data for Quebec or Newfoundlad / Labrador. I believe both have Arctic territories.
+- Census 2021 was released last Nov. Update datasets?
 
 **Data sources**:
 

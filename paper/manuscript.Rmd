@@ -1,0 +1,159 @@
+---
+title: "Skill and labour networks as proxy of adaptive capacity"
+author: |
+    | \small Juan C. Rocha^1,2^, Kevin Berry^3^, Marianne Faladeau-Cote^4^, Anne-Sophie Crépin^5^, Susa Niiraren^1^
+    | \footnotesize ^1^Stockholm Resilience Centre, Stockholm University, 10691, Stocholm, Sweden
+    | \footnotesize ^2^The Anthropocene Laboratory, The Royal Swedish Academy of Sciences, Stockholm, Sweden
+    | \footnotesize ^3^University of Alaska Anchorage, Anchorage, USA
+    | \footnotesize ^4^University ..., Candada
+    | \footnotesize ^5^Beijer Institute of Ecological Economics, The Royal Swedish Academy of Sciences, Stockholm, Sweden
+    | \small \texttt{\href{mailto:juan.rocha@su.se}{\nolinkurl{juan.rocha@su.se}}}
+output:
+  pdf_document:
+    dev: pdf
+    keep_tex: yes
+    toc: no
+    latex_engine: xelatex
+  rtf_document:
+    toc: no
+  word_document:
+csl: /Users/juanrocha/Documents/styles/nature.csl
+bibliography: refs.bib
+citecolor: blue
+documentclass: article
+classoption:
+- onecolumn
+# font: Arial
+fontsize: 10pt
+linkcolor: blue
+urlcolor: blue
+header-includes:
+- \usepackage{dcolumn, rotating, longtable, float, array, tabularx, inputenc}
+
+- \usepackage[switch]{lineno}
+# - \setmainfont{Arial}
+- \renewcommand{\abstractname}{}
+- \graphicspath{{figures/}}
+- \usepackage[margin=2.5cm]{geometry}
+- \linenumbers
+- \usepackage{setspace}
+---
+
+# Outline
+
+Target journal: Ambio, ERL, NatSust, PNAS (\~4000w), GEC (6k)
+
+Introduction (800w)
+
+-   Arctic communities are going through extreme environmental changes.
+-   These communities have remain resilient due to high adaptive capacity and rich local and indigenous knowledge systems. Adaptive capacity is
+-   However, uncertainty remains whether Arctic communities will adapt to the upcoming changes. There is need for developing methods that enable the assessment at large scale of adaptive and transformative capacities.
+-   In this paper we assess adaptive and transformative capacities with knowldge networks.
+
+Methods (700w)
+
+-   Knowledge at the municipality scale:
+-   Knowldege at the individual scale:
+-   Comparative competitive advantage:
+
+Results (1000w)
+
+-   Sweden
+-   Findland
+-   Canada
+
+Discussion (1000w)
+
+-   Ranking of municipalities enables comparison and detect hotspots with low diversity.
+-   Temporal data availability enables reconstruction of these capacities over time, opening the door to testing the effectiveness of interventions.
+-   Data limitations: resolution on labour classifications varies across countries. Not all country reports data over time. We manually matched skills with the ONET database.
+
+Conclusions (500w)
+
+\pagebreak
+
+\begin{abstract}
+  \textit{Arctic communities are facing rates of environmental change much higher than the rest of the planet. It remains uncertain if Arctic communities will be able to adapt and continue with their livelihoods, transform and develop new livelihoods, or lose their livelihoods and be forced to migrate. Here we use knowledge as a proxy of adaptive and transformative capacities embedded on the networks of skills and jobs that people have in three Arctic regions. We find that public labour data enables to rank communities according to the diversity of their knowledge and the livelihoods that confers them adaptive capacity. Public data can be used to identify places with low economic complexity and design interventions to build resilience based on the knowledge already present in the region.}
+\end{abstract}
+
+# Introduction
+
+Arctic communities are going through extreme environmental changes.
+Some estimates report warming rates four times that of the rest of the planet [ref].
+However, Arctic challenges are more than just global warming.
+Many livelihoods and traditional activities are threatened by early melt of the ice, change in fishing and grazing grounds, change in migratory routes of key species, or abrupt changes in the composition of ecological communities.
+In addition to changes in the environment, there are strong economic forces pressing for the development of new industries that do not necessarily align with local interest.
+Examples include mining, green energy parks, oil exploration, infrastructure development, shipping, to name a few [ARA].
+These pressures are faced often by communities with a long history of colonialism and social challenges related to malnutrition, low employment rates, substance abuse or migration.
+
+Despite these challenges, Arctic communities have remain resilient due to high adaptive capacity and rich local and indigenous knowledge systems [ARA, Rocha].
+Resilience is the ability to absorb disturbances and reorganize while undergoing change so as to still maintain the same function, structure, and therefore identity [Folke].
+Two evolutionary features of resilience is adaptive and transformative capacities.
+Adaptability is the capacity to learn, combine experience and knowledge to adjust responses.
+Transformability, in turn, is the ability to cross thresholds and move social-ecological systems towards new configurations, into emergent and often unknown development trajectories [Folke].
+For example, Husavik (Iceland) used to be a community where whaling was its main economic activity, but due to a strong political push against whaling, it got forbidden by a moratorium.
+The community however had the knowledge of the whales migration routes, the boats and know how to navigate the sea.
+They transform their main economic activity into whale watching and today is a popular ecotourism destination [ARA].
+An example of adaptation is that of XXX in Greenland, following the decrease of XYZ they adapted the fishery to harvest ABC instead [ARA].
+
+However, uncertainty remains whether Arctic communities will adapt to the upcoming changes.
+Community based resilience assessments typically takes years of work with the communities, building trust, where participatory approaches are used to understand their problems and potential ways forward such as co-management experiments [Refs, Marianne work].
+In fact, efforts to upscale resilience assessments in the Arctic still are at best medium size studies with relatively low sample size [Rocha 2020].
+Developing methods that enable the large scale assessment of adaptive and transformative capacities is needed.
+Previous work have made progress by leveraging methods that qualitatively or quantitatively enable comparison across cases studies, yet expert elicitation, document analysis and validation made the process still challenging to upscale [ARA, Rocha].
+
+In this paper we propose that adaptive and transformative capacities can be assessed through knowledge networks.
+These networks embed the knowledge and know how of a system.
+In countries, these networks have been derived by looking at the relative competitive advantage [Balasa] of the basket of products that a country produce [Hidalgo].
+In cities, it has been mapped through labour data which reveals which professions an urban center is competitive at, while in industries by looking at patents.
+Knowledge networks have been observed to correlate with the resilience of cities to financial crises.
+A higher diversity of knowledge before disturbance enables communities to recover faster, as predicted by the theory [Folke, Levin].
+Here we use knowledge networks to rank places in three regions of the Arctic and discover places where low knowledge diversity might limit their adaptive and transformative capacities.
+
+# Methods
+
+**Data:** To study knowledge networks we used publicly available labour data statistics for Sweden, Finland, and Canada.
+For Sweden we use a 3 digit occupation classification with number of workers per professions (N=149) per municipality (N=291) for 2019.
+For Finland we use a 4 digit classification of 459 occupations in 309 municipalities for the years 2010-2019.
+In Canada we used a 4 digit classification of 500 occupations for 2016 in 10 regions located in the Arctic that are part of Nunavut, Northern territories and Yukon.
+Each country has its own occupation classification and we did not modify them to make them directly comparable.
+However, we used the O\*NET database from the US Department of Labour, which maps the importance of 117 workplace skills, knowledge and abilities for the performance of 873 occupations [ref].
+To make each country classification compatible with O\*NET, we manually matched classification codes used in Sweden, Finland and Canada, with 4 digit classification level of O\*NET.
+Appendix 1 present the lists of occupations per country and the list of skills used from O\*NET.
+
+**Knowledge networks**: We constructed two types of knowledge networks based on labour and skill data.
+For each country we transformed the data into a matrix $A_{i,j}$ with $i$ number of municipalities and $j$ number of occupations, where $a_{i,j}$ is the number of workers in occupation $i$ of municipality $j$.
+We then matched the occupation classification of each country with that of O\*NET such that we could construct a skill network $S_{i,j}$ with $i$ skills and $j$ occupations.
+With the matrices $A_{i,j}$ and $S_{i,j}$ we first computed the revealed comparative advantage (RCA) or location quotient for each country, where $R_{i,j} = a_{i,j} * \Sigma A_{i,j} / \Sigma A_{i} * \Sigma A_{j}$.
+$R_{i,j}$ is then a normalized specialization matrix with the ratio of the observed and expected economic activity of each location, if $r_{i,j} > 1$ it means location $i$ is considered specialized in activity $j$.
+
+**Economic or knowledge complexity**: We then calculated relatedness of occupations given the geography where they occur and the skills required.
+Relatedness $\phi$ measures the affinity between a location and an activity [Hidalgo], while relatedness density $\omega$ measures the fraction of related activities present in each location.
+We used the cosine method for $\phi = R_{i,j} / \sqrt{\Sigma_i R_{i,j} * \Sigma_j R_{i,j} }$, and $\omega = \Sigma_i R_{i,j} \phi / \Sigma_i \phi$ .
+Finally we computed the economic complexity index (also known as knowledge complexity) for locations and professions using the singular value decomposition method [Hidalgo], as well as the Shannon diversity index (or entropy) to quantify the diversity of jobs and skills.
+We report the Z-transformed version of the comlexity index, values \> 0 represent locations or professions with higher complexity than the average for each dataset [Hidalgo].
+
+**Migration**: Previous qualitative assessments of resilience have linked out migration rates with lack of opportunities, loss of livelihoods and erosion of traditional knowledge [ARA].
+We then hypothesise that a statistical relatonship between knowledge complexity and out migration rates can be detected in our dataset.
+We have time varying data for Finland for the years 2010-2019, so we repeated the analysis for each year and studied the change on knowledge complexity over time per municipality.
+We use a panel model with fixed effects to explore how changes in economic complexity explain changes in migration rates.
+
+# Results
+
+Finland's economic complexity is concentrated in the areas close its capital Helsinki.
+
+Figure 1.
+Finland's economic complexity
+
+Figure 2.
+Sweden's economic complexity
+
+Figure 3.
+Arctic Canada's economic complexity
+
+Figure 4.
+Knowledge complexity and migration.
+
+# Discussion
+
+-   Data limitations

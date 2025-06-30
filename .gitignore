@@ -17,3 +17,12 @@
 *.Rproj
 *.html
 *.json
+*.tex
+libs/
+*.png
+*.pdf
+*.html
+.DS_Store
+sweden_net_files
+*.gpkg
+*.rtf
