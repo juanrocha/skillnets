@@ -143,7 +143,7 @@ prblm <- fin_onet |> filter(is.na(`Active Listening`)) |>
 
 
 #### Skillscape ####
-rca01 <- location.quotient(fin_mat, binary = TRUE)
+rca01 <- location_quotient(fin_mat, binary = TRUE)
 
 ## Effective use = phi or theta aka proximity
 #phi <- Herfindahl(fin_mat) # Herfindahl is a proxy of diversity
@@ -179,8 +179,8 @@ e_skills <- svd(M_skills)
 ## Both ways achieve qualitatively similar results
 df_jobs <- tibble(
   jobs = fin_onet$occupation,
-  eci_jobs = MORt(t(fin_mat)),
-  herfindahl = Herfindahl(fin_mat), krugman = Krugman.index(fin_mat),
+  eci_jobs = mort(t(fin_mat)),
+  herfindahl = herfindahl(fin_mat), krugman = krugman_index(fin_mat),
   diversity = EconGeo::diversity(rca01)
 ) |> arrange(desc(eci_jobs)) |>
   left_join(
@@ -238,7 +238,7 @@ range(job_mat) # no NAs
 
 
 ## RCA ##
-rca <- location.quotient(job_mat, binary = TRUE)
+rca <- location_quotient(job_mat, binary = TRUE)
 
 ## Effective use = phi or theta aka proximity
 #phi <- Herfindahl(rca)
@@ -265,8 +265,8 @@ d_towns <- svd(M_towns)
 
 df_jobs2 <- tibble(
   jobs = fin2019$isco4_name_en,
-  eci_mor = MORt(t(rca)),
-  herfindahl = Herfindahl(rca), krugman = Krugman.index(rca)
+  eci_mor = mort(t(rca)),
+  herfindahl = herfindahl(rca), krugman = krugman_index(rca)
 ) |> arrange(desc(eci_mor)) |>
   left_join(
     tibble(
@@ -286,9 +286,9 @@ cor(df_jobs2$rank_mor, df_jobs2$rank_svd)
 df_towns <- tibble(
   towns = colnames(job_mat),
   shannon = entropy(t(exp(job_mat))), # the matrix was on log units, needs to be exp
-  eci_mor = MORt(rca),
-  eci_eig = KCI(t(rca)),
-  herfindahl = Herfindahl(t(rca)), krugman = Krugman.index(t(rca)),
+  eci_mor = mort(rca),
+  eci_eig = kci(t(rca)),
+  herfindahl = herfindahl(t(rca)), krugman = krugman_index(t(rca)),
   ubiquity = ubiquity(rca), diversity = EconGeo::diversity(t(rca))
 ) |> arrange(desc(eci_mor)) |>
   left_join(
@@ -364,7 +364,7 @@ c <- ggplot(net, aes(x = x, y = y, xend = xend, yend = yend), layout = lyt) +
   theme_void(base_size = 6) +
   theme(legend.position = "bottom", legend.title.position = "top")
 
-
+c
 
 
 skill_net <- graph_from_adjacency_matrix(
@@ -427,9 +427,11 @@ lyrs <- ogrListLayers("data/Finland/Finland map/SuomenHallinnollisetKuntajakopoh
 # dta <- src_sqlite ("data/Finland/Finland map/SuomenHallinnollisetKuntajakopohjaisetAluejaot_2023_10k.gpkg")
 # fin1 <- tbl(dta, "Valtakunta")
 
+lyrs <- st_layers("data/Finland/Finland map/SuomenHallinnollisetKuntajakopohjaisetAluejaot_2023_10k.gpkg")
+
 fin <- read_sf(
   "data/Finland/Finland map/SuomenHallinnollisetKuntajakopohjaisetAluejaot_2023_10k.gpkg",
-  layer = lyrs[4])
+  layer = "Kunta") #
 
 fin$nameswe [!fin$nameswe %in% df_towns$towns]
 df_towns$towns[!df_towns$towns %in% fin$nameswe] %in% fin$namefin
@@ -444,6 +446,7 @@ b <- fin |>
   left_join(df_towns ) |>
   ggplot() +
   geom_sf(aes(fill = shannon), linewidth = 0.01, show.legend = FALSE) +
+  geom_sf(data = fin |> filter(namefin == "Inari"), color = "orange", fill = NA, linewidth = 0.5) +
   scale_fill_viridis_c(name = "Shannon\ndiversity") + #ggdark::dark_mode() +
   labs(tag = "B") +
   theme_light(base_size = 6) #+
@@ -452,6 +455,17 @@ b <- fin |>
   #      legend.key.width = unit(2,"mm"), legend.key.height = unit(5,"mm")
   #       )
 
+b + geom_sf_label( data = (fin |>
+  terra::vect() |>
+  terra::centroids() |>
+  sf::st_as_sf()),
+  aes(label = namefin), size = 3
+)
+
+
+
+fin |> ggplot() +
+  geom_sf(aes(color = (namefin == "Inari")), show.legend = FALSE)
 
 ggsave(
   file = "fig1_Finland.png", device = "png", path = "img/", width = 5, height = 5,

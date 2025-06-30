@@ -4,6 +4,8 @@ library(fs)
 library(sf)
 library(tictoc)
 library(EconGeo)
+library(ggnetwork)
+
 
 #### Read data ####
 # load onet
@@ -81,7 +83,7 @@ swe2 <- swe2 |>
   #ggplot(aes(municipality, onet_soc)) + geom_tile(aes(fill = prop_jobs)) + theme(axis.text = element_blank())
   #pivot_wider(names_from = onet_soc, values_from = ppl_2009, values_fn = sum)
 
-
+swe2 |> pull(swedish_occupation_english) |> unique() |> length()
 
 # Now swe2 has the info of the matrix with proportion of population per place who works in certain jobs.
 
@@ -98,11 +100,16 @@ swe_mat <- onet |>
   right_join(swe_match |> rename(title = onet_soc)) |>
   filter(!is.na(`Active Learning`)) # there is one row with all NAs
 
+## remove obs that are in one data and not the other
+swe_mat$title %in% swe2$onet_soc |> all()
+unique(swe2$swedish_occupation_english)[!unique(swe2$swedish_occupation_english) %in% swe_mat$title]
+
+
 # simply updates the df with the codes and title names from onet. The order of rows
 # is the same as in the matrix in case you need the names later.
 #swe_match <- swe_mat |> select(where(is.character))
 
-profs <- swe_mat$title #professions from onet
+profs <- swe_mat$en_occ #professions from swe_match, so we keep unique values
 
 swe_mat <- swe_mat |> ungroup() |>
   select(where(is.numeric)) |> # this is the raw matrix for skills
@@ -117,17 +124,15 @@ rownames(swe_mat) <- profs
 #### Skillscape ####
 # J240808: Update, moving a lot of development code with errors to the leftover section
 # using now EconGeo package instead of my attempts to code some of the functions.
-rca01 <- location.quotient(swe_mat, binary = TRUE)
+rca01 <- location_quotient(swe_mat, binary = TRUE)
 
 ## Effective use = phi or theta aka proximity: can be calculated with
-phi <- Herfindahl(swe_mat)
+phi <- herfindahl(swe_mat)
 
 ## Relatedness: can be calculated with other methods of distance, but currently produces
 ## the probability of changing jobs.
-M_skills <- relatedness(t(rca01) %*% rca01)
-M_jobs <- relatedness(rca01 %*% t(rca01))
-
-
+M_skills <- relatedness(t(rca01) %*% rca01, method = "prob")
+M_jobs <- relatedness(rca01 %*% t(rca01), method = "prob")
 
 e_jobs <- svd(M_jobs)
 e_skills <- svd(M_skills)
@@ -135,11 +140,30 @@ e_skills <- svd(M_skills)
 # eci_jobs <-( e_jobs$d - mean(e_jobs$d)) / sd(e_jobs$d)
 # eci_skills <- (e_skills$d - mean(e_skills$d) / sd(e_skills$d))
 
+df_jobs <- tibble(
+  jobs = rownames(swe_mat),
+  eci_mor = mort(t(swe_mat)),
+  herfindahl = herfindahl(swe_mat), krugman = krugman_index(swe_mat),
+  diversity = EconGeo::diversity(rca01)
+) |> arrange(desc(eci_mor)) |>
+  left_join(
+    tibble(
+      jobs = colnames(M_jobs)[order(colSums(M_jobs))],
+      eci_svd = ( e_jobs$d - mean(e_jobs$d)) / sd(e_jobs$d)
+    )
+  )
+
+ggplot(df_jobs) +
+  geom_point(aes(eci_mor, eci_svd)) +
+  scale_y_continuous(trans = "log1p")
+
 #### Occupations space ####
 ## Matrix for Sweden: logtransform because of the long tails
 swe2 |> ggplot(aes(jobs)) + geom_density() + scale_x_log10()
 
 job_mat <- swe2 |>
+  # can't do this, there is ~10 jobs in the swedish system that have the same ONet
+  #left_join(swe_match |> select(-swe_occ)) |>
   mutate(log_jobs = log1p(jobs)) |>
   #mutate(prop_jobs = log_jobs / sum(log_jobs)) |>
   #ggplot(aes(prop_jobs, municipality)) + geom_boxplot()
@@ -157,10 +181,10 @@ rownames(job_mat) <- swe2$municipality |> unique()
 rowSums(job_mat) |> as.logical() |> all()
 
 ## RCA ##
-rca <- location.quotient(job_mat, binary = TRUE)
+rca <- location_quotient(job_mat, binary = TRUE)
 
 ## Effective use = phi or theta aka proximity
-phi <- Herfindahl(rca)
+phi <- herfindahl(rca)
 
 ## Relatedness:
 # w <- rca01 %*% phi / colSums(phi)
@@ -182,7 +206,7 @@ spectralGP::image_plot(
 
 df_jobs2 <- tibble(
   jobs = colnames(M_jobs2),
-  eci_mor = MORt((rca)),
+  eci_mor = mort((rca)),
 ) |> arrange(desc(eci_mor)) |>
   left_join(
     tibble(
@@ -210,15 +234,15 @@ cor(df_jobs2$rank_mor, df_jobs2$rank_svd)
 df_towns <- tibble(
   towns = rownames(job_mat) |> str_remove(pattern = "\\d{4} ") ,
   shannon = entropy(exp(job_mat)), # the matrix was on log units, needs to be exp
-  eci_mor = MORt(t(rca))
-) |> arrange((eci_mor)) |>
+  eci_mor = mort(t(rca))
+) |> arrange(desc(eci_mor)) |>
   left_join(
     tibble(
       towns = str_remove(rownames(job_mat), pattern = "\\d{4} ")[order(colSums(M_towns), decreasing = TRUE)],
       eci_svd = (d_towns$d - mean(d_towns$d) / sd(d_towns$d))
     )
   ) |>
-  mutate(rank_mor = order(eci_mor), rank_svd = order(eci_svd))
+  mutate(rank_mor = order(eci_mor), rank_svd = order(eci_svd, decreasing = TRUE))
 
 df_towns |>
   ggplot(aes(rank_svd, rank_mor)) +
@@ -302,9 +326,12 @@ swe_map |>
   ggplot() +
   geom_sf(aes(fill = shannon), linewidth = 0.01) +
   scale_fill_viridis_c(name = "Shannon\ndiversity") +
+  labs(tag = "A") +
   #ggdark::dark_mode() +
-  theme(legend.position.inside = c(0.8, 0.2), legend.position = "inside",
-        plot.background = element_rect(fill = "#191919"))
+  theme_light(base_size = 10) +
+  theme(legend.position.inside = c(0.8, 0.2),
+        legend.position = "inside")
+        #plot.background = element_rect(fill = "#191919"))
 
 # ggsave(filename = "img/sweden_diversity.png", device = "png", width = 3, height = 4.5, dpi = 500, bg = NULL)
 
@@ -315,33 +342,97 @@ library(igraph)
 # the colSums is not 1. To approximate a prob matrix, divide (normalize) by the colSums
 plot(density(M_jobs2 )) #/ colSums(M_jobs2)
 
+nat_profs <- c(
+  "Animal breeders and keepers" ,
+  "Butchers, bakers and food processors",
+  "Biologists, pharmacologists and specialists in agriculture and forestry",
+  "Specialists within environmental and health protection",
+  "Forestry and agricultural production managers",
+  "Berry pickers and planters",
+  "Mixed crop and animal breeders" ,
+  "Aquaculture and fishery workers",
+  "Forestry and related workers",
+  "Market gardeners and crop growers",
+  "Wood treaters, cabinet-makers and related trades workers",
+  "Wood processing and papermaking plant operators",
+  "Veterinarians", "Veterinary assistants"
+)
+
 net <- graph_from_adjacency_matrix(
   (M_jobs2 > quantile(M_jobs2,0.90) ), "undirected")
 
-graph.density(net)
+edge_density(net)
 
 net$weight <-  M_jobs2
 V(net)$eci_svd <- df_jobs2 |> arrange(jobs) |> pull(eci_svd) > 0
-V(net)$Kiruna <- rca[290,] # Inari is the region where Naatamo is
+V(net)$Kiruna <- rca[290,] |> as.logical() # Kiruna
+V(net)$name <- colnames(M_jobs2)
+V(net)$nat_prof <- colnames(M_jobs2) %in% nat_profs
+
 
 lyt <- layout_nicely(net)
 sig <- sigmaFromIgraph(net, lyt) |>
   addEdgeSize(oneSize = 0.5) |>
   addEdgeColors(oneColor = "#e1e0df") |>
-  addNodeColors(colorAttr = "Kiruna", colorPal = "Paired") |>
+  addNodeColors(colorAttr = "eci_svd", colorPal = "Paired") |>
   addNodeSize(oneSize = 2)
 
 sig
 
 htmlwidgets::saveWidget(sig, file= "img/sweden_net.html", background = "#191919")
 
+## network of jobs given the places where they occur
+plot.igraph(
+  net, layout = lyt, vertex.color = ifelse(V(net)$eci_svd, "#f1a340", alpha("grey50", 0.5)),
+  vertex.size =  ifelse(V(net)$Kiruna, 5, 3),
+  vertex.label = NA, vertex.frame.color = ifelse(V(net)$name %in% nat_profs, "red", NA),
+  vertex.alpha = 0.5, edge.width = 0.5)
+## It's not so interesting, it means people can go to another place to get the same job given they have a similar job market with comparative advantage.
+b <- ggplot(
+  net, aes(x = x, y = y, xend = xend, yend = yend),
+  layout = lyt) +
+  geom_edges(color = "grey50", alpha = 0.15, linewidth = 0.25) +
+  geom_nodes(aes(fill = eci_svd, alpha = eci_svd, size = Kiruna, color = nat_prof),
+             shape = 21, show.legend = TRUE) +
+  scale_alpha_manual(values = c(0.5,1)) +
+  scale_size_manual("Kiruna \n ECI > 0", values = c(0.5,1)) +
+  scale_fill_manual("Sweden \n ECI > 0",values = c( "grey50", "#f1a340")) +
+  scale_color_manual("Natural resources\ndependent occupations",values = c( "white", "red")) + guides(alpha = "none") + coord_fixed() +
+  labs(tag = "B") +
+  theme_void(base_size = 10) +
+  theme(legend.position = "bottom", legend.title.position = "top")
 
+b
+## network of jobs given the skills at which they have RCA
+skill_net <- graph_from_adjacency_matrix(
+  (M_jobs > quantile(M_jobs, 0.9) ), "undirected")
+skill_net$weight <-  M_jobs
+V(skill_net)$eci_svd <- df_jobs |> arrange(jobs) |> pull(eci_svd) > 0
+#V(net)$Inari <- rca01[,] # Inari is the region where Naatamo is
+V(skill_net)$name <- profs
+V(skill_net)$nat_prof <- profs %in% nat_profs
+lyt2 <- layout_nicely(skill_net)
 
+## network of jobs given the skills
+plot.igraph(
+  skill_net, layout = lyt2,
+  vertex.color = ifelse(V(skill_net)$eci_svd, "#f1a340", alpha("grey50", 0.5)),
+  vertex.size = 3,
+  vertex.label = NA,
+  vertex.frame.color = ifelse(V(skill_net)$name %in% nat_profs, "red", NA),
+  vertex.alpha = 0.5, edge.width = 0.5)
 
-
-
-
-
+d <- ggplot(skill_net, aes(x = x, y = y, xend = xend, yend = yend), layout = lyt2 ) +
+  geom_edges(color = "grey50", alpha = 0.15, linewidth = 0.25) +
+  geom_nodes(aes(fill = eci_svd, alpha = eci_svd, color = nat_prof),
+             shape = 21, show.legend = TRUE) +
+  scale_alpha_manual(values = c(0.5,1)) +
+  #scale_size_manual("Inari \n ECI > 0", values = c(2,3)) +
+  scale_fill_manual("Sweden \n ECI > 0",values = c( "grey50", "#f1a340")) +
+  scale_color_manual("Natural resources\ndependent occupations",values = c("white" , "red")) + guides(alpha = "none") +
+  labs(tag = "D") + coord_fixed() +
+  theme_void(base_size = 6) +
+  theme(legend.position = "bottom", legend.title.position = "top")
 
 
 

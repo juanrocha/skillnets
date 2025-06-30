@@ -4,6 +4,10 @@ author: "Juan Rocha"
 output: html_document
 ---
 
+**250630**
+
+- Finland: normalize number of workers, either log or compute the proportion normalized by population per city.
+- Sweden: using english names duplicate some professions, currently the matrix of labour and skills have different number of jobs. To fix []. Can't be done, if one wants to use standard names across the two networks, then we need to use ONet classification and aggregate the swedish ones with the same onet code.
 
 **240808**
 There are errors on my code trying to reproduce ECI from matrix operations using for loops. The

@@ -1,12 +1,13 @@
 ---
 title: "Skill and labour networks as proxy of adaptive capacity"
 author: |
-    | \small Juan C. Rocha^1,2^, Kevin Berry^3^, Marianne Faladeau-Cote^4^, Anne-Sophie Crépin^5^, Susa Niiraren^1^
+    | \small Juan C. Rocha^1,2^, Kevin Berry^3^, Marianne Faladeau-Cote^4^, Anne-Sophie Crépin^5^, Susa Niiraren^1^, Sirkku K. Juhola^6^
     | \footnotesize ^1^Stockholm Resilience Centre, Stockholm University, 10691, Stocholm, Sweden
     | \footnotesize ^2^The Anthropocene Laboratory, The Royal Swedish Academy of Sciences, Stockholm, Sweden
     | \footnotesize ^3^University of Alaska Anchorage, Anchorage, USA
     | \footnotesize ^4^University ..., Candada
     | \footnotesize ^5^Beijer Institute of Ecological Economics, The Royal Swedish Academy of Sciences, Stockholm, Sweden
+    | \footnotesize ^5^Helsinki Institute of Sustainability Science, University of Helsinki, Helsinki, Finland
     | \small \texttt{\href{mailto:juan.rocha@su.se}{\nolinkurl{juan.rocha@su.se}}}
 output:
   pdf_document:
@@ -88,12 +89,12 @@ These pressures are faced often by communities with a long history of colonialis
 
 Despite these challenges, Arctic communities have remain resilient due to high adaptive capacity and rich local and indigenous knowledge systems [ARA, Rocha].
 Resilience is the ability to absorb disturbances and reorganize while undergoing change so as to still maintain the same function, structure, and therefore identity [Folke].
-Two evolutionary features of resilience is adaptive and transformative capacities.
+Two evolutionary features of resilience are adaptive and transformative capacities.
 Adaptability is the capacity to learn, combine experience and knowledge to adjust responses.
 Transformability, in turn, is the ability to cross thresholds and move social-ecological systems towards new configurations, into emergent and often unknown development trajectories [Folke].
 For example, Husavik (Iceland) used to be a community where whaling was its main economic activity, but due to a strong political push against whaling, it got forbidden by a moratorium.
 The community however had the knowledge of the whales migration routes, the boats and know how to navigate the sea.
-They transform their main economic activity into whale watching and today is a popular ecotourism destination [ARA].
+They transformed their main economic activity into whale watching and today is a popular eco-tourism destination [ARA].
 An example of adaptation is that of XXX in Greenland, following the decrease of XYZ they adapted the fishery to harvest ABC instead [ARA].
 
 However, uncertainty remains whether Arctic communities will adapt to the upcoming changes.
@@ -131,16 +132,22 @@ $R_{i,j}$ is then a normalized specialization matrix with the ratio of the obser
 Relatedness $\phi$ measures the affinity between a location and an activity [Hidalgo], while relatedness density $\omega$ measures the fraction of related activities present in each location.
 We used the cosine method for $\phi = R_{i,j} / \sqrt{\Sigma_i R_{i,j} * \Sigma_j R_{i,j} }$, and $\omega = \Sigma_i R_{i,j} \phi / \Sigma_i \phi$ .
 Finally we computed the economic complexity index (also known as knowledge complexity) for locations and professions using the singular value decomposition method [Hidalgo], as well as the Shannon diversity index (or entropy) to quantify the diversity of jobs and skills.
-We report the Z-transformed version of the comlexity index, values \> 0 represent locations or professions with higher complexity than the average for each dataset [Hidalgo].
+We report the Z-transformed version of the complexity index, values \> 0 represent locations or professions with higher complexity than the average for each dataset [Hidalgo].
 
 **Migration**: Previous qualitative assessments of resilience have linked out migration rates with lack of opportunities, loss of livelihoods and erosion of traditional knowledge [ARA].
-We then hypothesise that a statistical relatonship between knowledge complexity and out migration rates can be detected in our dataset.
+We then hypothesize that a statistical relationship between knowledge complexity and out migration rates can be detected in our data set.
 We have time varying data for Finland for the years 2010-2019, so we repeated the analysis for each year and studied the change on knowledge complexity over time per municipality.
 We use a panel model with fixed effects to explore how changes in economic complexity explain changes in migration rates.
 
 # Results
 
-Finland's economic complexity is concentrated in the areas close its capital Helsinki.
+Finland's economic complexity is concentrated in the areas close to the capital Helsinki.
+These regions have on average higher diversity of professions on which each municipality has revealed competitive advantage (Fig 1).
+The complexity index calculated with the method of reflections or singular value decomposition have in general good agreement, with a correlation coefficient of 0.97 on the skillspace and 0.94 on the occupations space.
+While there is relative lower diversity in the Arctic region in Finland, municipalities such as Enontekiö, Utsjoki, Savukoski, or Pelkosenniemi have relatively high diversity and stronger competitive advantage, while Inari, Kittilä, or Sodankylä are on the lower end of the spectrum.
+One of the cases documented in the Arctic resilience assessment is the Skolt Sámi community in the Näätämö river (Inari highlighted in orange in Fig 1B), who have adapted to climate and social pressures in their salmon fishery management [ARA].
+Taking Inari as an example, we show that professions whose livelihoods depend on natural resources have relatively low competitive advantage in the Arctic.
+If something happens (e.g. an abrupt decline on the resources), people who depend on nature based livelihoods have low probability to switch to other jobs in these communities given the skill set of their jobs, and the job offers on which the municipality has competitive advantage (Fig 1D).
 
 Figure 1.
 Finland's economic complexity
