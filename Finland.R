@@ -3,6 +3,8 @@ library(tictoc)
 library(EconGeo)
 library(patchwork)
 library(ggnetwork)
+
+
 #### Read data ####
 # load onet
 load("data/onet.Rda") # 34MB
@@ -73,8 +75,12 @@ df_match[df_match$occupation == "Legislators", "onet"]
 
 
 onet_occ <- onet |>
-  select(o_net_soc_code, title) |>
+  select(onet =o_net_soc_code, title) |>
   unique()
+
+df_match |> left_join(onet_occ) |>
+  print(n=500)
+
 
 #onet_occ |> filter(str_detect(title, "Milk"))
 
@@ -113,31 +119,42 @@ dat |>
 # classification. It will create jobs with the same complexity, but that happens in any case
 # in raw onet if two jobs have the same skill vector. One strong reason for going this pathway is to
 # keep the same dimensions between this `fin_onet` data and the Finish data `dat`.
+# J250703: Keeping the ONET names in both networks allows to see for example proportion of towns
+# where a job has competitive advantage in the country (a feature of both nets).
 fin_onet <- onet |>
   filter(scale_id == "IM") |>  # retain only importance scores
   select(-scale_id, -scale_name, onet = o_net_soc_code, -c(n:domain_source)) |>
   #filter(onet %in% df_match$onet) |> # filter reduces to matches
   # we lose occupations the moment we merge different jobs on the finish classification
   # under the same onet codes. It is unavoidable. To avoid that use right_join
-  select(-title, -element_id) |> #pull(data_value) |> range()
+  select( -element_id) |> #pull(data_value) |> range()
   mutate(data_value = scales::rescale(data_value, to = c(0,1))) |>
-  group_by(onet, element_name) |>
+  group_by(onet, title, element_name) |>
   # for combinations with more than one value we average
   summarize(value = mean(data_value)) |>
   pivot_wider(names_from = element_name, values_from = value, values_fill = 0) |>
   # rigth join keeps all rows of df_match, so duplicate vectors for finish occupations
   # with the same onet code.
   right_join(df_match) |>
-  select(onet, code_isco4, occupation, 4:last_col())
+  select(onet, title, code_isco4, occupation, 4:last_col())
 
+# title is the profession in onet, occupation is the profession in Finlad stats classification
+fin_onet <- fin_onet |> ungroup() |>
+  select(-occupation, -code_isco4) |> #remove finish classification
+  unique() # keep non duplicates from ONET
+# 312 professions left
 
-fin_mat <- fin_onet |> ungroup() |> select(-c(onet:occupation)) |>
+profs <- fin_onet$title
+
+fin_mat <- fin_onet |> ungroup() |>
+  filter(title %in% profs2) |>
+  select(-c(onet:title)) |>
   as.matrix()
-dim(fin_mat) # 436 occupations, 174 skills, bear in mind 293 unique onet occupations
+dim(fin_mat) # 300 occupations, 175 skills, bear in mind 293 unique onet occupations
 
 ## Missing values? : problem solved!
-prblm <- fin_onet |> filter(is.na(`Active Listening`)) |>
-  select(onet:occupation)
+prblm <- fin_onet |> filter(is.na(`Active Listening`)) #|>
+  #select(onet:occupation)
 
 # calculate RCA
 
@@ -178,14 +195,14 @@ e_skills <- svd(M_skills)
 
 ## Both ways achieve qualitatively similar results
 df_jobs <- tibble(
-  jobs = fin_onet$occupation,
+  jobs = profs2,
   eci_jobs = mort(t(fin_mat)),
   herfindahl = herfindahl(fin_mat), krugman = krugman_index(fin_mat),
   diversity = EconGeo::diversity(rca01)
 ) |> arrange(desc(eci_jobs)) |>
   left_join(
     tibble(
-      jobs = fin_onet$occupation[order(colSums(M_jobs))],
+      jobs = profs2[order(colSums(M_jobs))],
       eci_job2 = ( e_jobs$d - mean(e_jobs$d)) / sd(e_jobs$d)
     )
   ) |>
@@ -200,17 +217,20 @@ cor(df_jobs$rank_mor, df_jobs$rank_svd)
 #### Occupations space ####
 ## Matrix for Finland
 fin2019 <- dat |>
+  filter(year == 2019) |>
   select(-isco4_name_sv, -code_name_isco4_en, -code_name_isco4_sv) |>
   mutate(employed_persons = case_when(employed_persons == "…" ~ "0",
                                       TRUE ~ employed_persons)) |>
   mutate(employed_persons = as.numeric(employed_persons)) |>
-  filter(!str_detect(code_isco4, "\\d\\.")) |>
+  filter(!str_detect(code_isco4, "\\d\\.")) |> #select(isco4_name_en, code_isco4) |> unique() |> print(n=40)
   # negating the following results in army workers, but they do not exist on onet skills
   filter(code_isco4 %in% df_match$code_isco4) |>
   select(-municipality_code, -municipality_name_sv) |>
   #pivot_wider(names_from = municipality_name_en, values_from = employed_persons, values_fill = 0) |>
-  filter(year == 2019) |>
-  group_by(code_isco4) |>
+  left_join(df_match |> left_join(onet_occ)) |>
+  group_by(title, municipality_name_en) |>
+  # sum people by profession given that some onet profs are duplicates:
+  summarize(employed_persons = sum(employed_persons, na.rm = TRUE)) |>
   # remove zero sum rows in the matrix
   filter(sum(employed_persons) > 0) |>
   ungroup() |> group_by(municipality_name_en) |>
@@ -223,19 +243,27 @@ fin2019 <- dat |>
 
 ## there is one profession in fin2019 data that has different names in Swedish, different
 ## code ID but the same profession name in English. I will change the name, be aware if combining with results from skills analysis above
+# fin2019 <- fin2019 |>
+#   mutate(isco4_name_en = case_when(
+#     code_isco4 == "3411" ~ "Judicial assistant",
+#     .default = isco4_name_en
+#   ))
 
-fin2019 <- fin2019 |>
-  mutate(isco4_name_en = case_when(
-    code_isco4 == "3411" ~ "Judicial assistant",
-    .default = isco4_name_en
-  ))
+zero_cols <- fin2019 |> map_lgl(.f = function(x) ifelse(is.character(x), TRUE, sum(x) > 0))
+all(zero_cols) # no need to delete municipalities
+fin2019 |> rowwise() |>
+  mutate(zero_rows = sum(Akaa:Luhanka)>0) |>
+  filter(zero_rows == FALSE)
+fin2019 |> unique()
 
-skimr::skim(fin2019)
-job_mat <- as.matrix(fin2019 |> select(-c(1:3)))
+#skimr::skim(fin2019)
+job_mat <- as.matrix(fin2019 |> select(-1))
 
-dim(job_mat) # 400 jobs, 308 municipalities, 13 jobs and 1 town removed due to zeroes. The municipality removed is Sottunga (309)
-range(job_mat) # no NAs
+dim(job_mat) # 300 jobs, 308 municipalities, 13 jobs and 1 town removed due to zeroes. The municipality removed is Sottunga (309)
+# 100 jobs removed when switching to ONET classification
+range(job_mat) # no NAs, all in log units
 
+profs2 <- fin2019$title # jobs with non-zero values on the municipalities
 
 ## RCA ##
 rca <- location_quotient(job_mat, binary = TRUE)
@@ -264,13 +292,13 @@ d_towns <- svd(M_towns)
 #   nlevel = 10, legend.width = 0.025, col = hcl.colors(10, "YlOrRd", rev = TRUE))
 
 df_jobs2 <- tibble(
-  jobs = fin2019$isco4_name_en,
+  jobs = profs2,
   eci_mor = mort(t(rca)),
   herfindahl = herfindahl(rca), krugman = krugman_index(rca)
 ) |> arrange(desc(eci_mor)) |>
   left_join(
     tibble(
-      jobs = fin2019$isco4_name_en[order(rowSums(M_jobs2), decreasing = TRUE)],
+      jobs = profs2[order(rowSums(M_jobs2), decreasing = TRUE)],
       eci_svd = ( d_jobs$d - mean(d_jobs$d)) / sd(d_jobs$d)
     )
   ) |>
@@ -322,58 +350,67 @@ library(igraph)
 # Calculationg M_jobs with EconGeo does not produce a transition probability matrix,
 # the colSums is not 1. To approximate a prob matrix, divide (normalize) by the colSums
 plot(density(M_jobs2 )) #/ colSums(M_jobs2)
-nat_profs <- c("Wood treaters","Travel guides","Traditional and complementary medicine associate professionals", "Textile, fur and leather products machine operators not elsewhere classified", "Sewing, embroidery and related workers","Livestock and dairy producers", "Inland and coastal waters fishery workers", "Hunters and trappers", "Handicraft workers in wood, basketry and related materials" ,"Handicraft workers in textile, leather and related materials", "Glass makers, cutters, grinders and finishers", "Gardeners, horticultural and nursery growers", "Garden and horticultural labourers" ,"Fumigators and other pest and weed controllers" , "Fruit, vegetable and related preservers" ,"Forestry labourers","Forestry and related workers" ,"Field crop and vegetable growers" ,  "Farming, forestry and fisheries advisers" ,"Dairy-products makers", "Crop farm labourers" ,"Butchers, fishmongers and related food preparers", "Aquaculture workers" , "Animal producers not elsewhere classified")
-
-
-net <- graph_from_adjacency_matrix(
-  (M_jobs2 > quantile(M_jobs2, 0.9)) , "undirected")
-
-net$weight <-  M_jobs2
-V(net)$eci_svd <- df_jobs2 |> arrange(jobs) |> pull(eci_svd) > 0
-V(net)$Inari <- rca[,50] |> as.logical() # Inari is the region where Naatamo is
-V(net)$name <- fin2019$isco4_name_en
-V(net)$nat_prof <- fin2019$isco4_name_en %in% nat_profs
-
-lyt <- layout_nicely(net)
-sig <- sigmaFromIgraph(net, lyt) |>
-  addEdgeSize(oneSize = 0.5) |>
-  addEdgeColors(oneColor = "#e1e0df") |>
-  addNodeColors(colorAttr = "eci_svd", colorPal = "Paired") |>
-  addNodeSize(oneSize = 2)
-
-sig
-
-htmlwidgets::saveWidget(sig, file= "img/finland_net.html", background = "#191919")
-
-## network of jobs given the places where they occur
-plot.igraph(
-  net, layout = lyt, vertex.color = ifelse(V(net)$eci_svd, "#f1a340", alpha("grey50", 0.5)),
-  vertex.size =  ifelse(V(net)$Inari, 5, 3),
-  vertex.label = NA, vertex.frame.color = ifelse(V(net)$name %in% nat_profs, "red", NA),
-  vertex.alpha = 0.5, edge.width = 0.5)
-
-c <- ggplot(net, aes(x = x, y = y, xend = xend, yend = yend), layout = lyt) +
-  geom_edges(color = "grey50", alpha = 0.15, linewidth = 0.25) +
-  geom_nodes(aes(fill = eci_svd, alpha = eci_svd, size = Inari, color = nat_prof),
-             shape = 21, show.legend = TRUE) +
-  scale_alpha_manual(values = c(0.5,1)) +
-  scale_size_manual("Inari \n ECI > 0", values = c(0.5,1)) +
-  scale_fill_manual("Finland \n ECI > 0",values = c( "grey50", "#f1a340")) +
-  scale_color_manual("Natural resources\ndependent occupations",values = c( "white", "red")) + guides(alpha = "none") + coord_fixed() +
-  labs(tag = "C") +
-  theme_void(base_size = 6) +
-  theme(legend.position = "bottom", legend.title.position = "top")
-
-c
+# old list from the finish classification
+#nat_profs <- c("Wood treaters","Travel guides","Traditional and complementary medicine associate professionals", "Textile, fur and leather products machine operators not elsewhere classified", "Sewing, embroidery and related workers","Livestock and dairy producers", "Inland and coastal waters fishery workers", "Hunters and trappers", "Handicraft workers in wood, basketry and related materials" ,"Handicraft workers in textile, leather and related materials", "Glass makers, cutters, grinders and finishers", "Gardeners, horticultural and nursery growers", "Garden and horticultural labourers" ,"Fumigators and other pest and weed controllers" , "Fruit, vegetable and related preservers" ,"Forestry labourers","Forestry and related workers" ,"Field crop and vegetable growers" ,  "Farming, forestry and fisheries advisers" ,"Dairy-products makers", "Crop farm labourers" ,"Butchers, fishmongers and related food preparers", "Aquaculture workers" , "Animal producers not elsewhere classified")
+# list with onet professions
+nat_profs <- c(
+  "Animal Caretakers", "Biological Technicians", "Butchers and Meat Cutters" ,
+  "Cabinetmakers and Bench Carpenters" , "Carpenters","Farmers, Ranchers, and Other Agricultural Managers" ,
+  "Farmworkers and Laborers, Crop, Nursery, and Greenhouse",
+  "Farmworkers, Farm, Ranch, and Aquacultural Animals" ,
+  "Fishing and Hunting Workers" ,"Foresters",
+  "Pesticide Handlers, Sprayers, and Applicators, Vegetation")
+## network given relatedness / proximity in geography
+# net <- graph_from_adjacency_matrix(
+#   (M_jobs2 > quantile(M_jobs2, 0.9)) , "undirected")
+#
+# net$weight <-  M_jobs2
+# V(net)$eci_svd <- df_jobs2 |> arrange(jobs) |> pull(eci_svd) > 0
+# V(net)$Inari <- rca[,45] |> as.logical() # Inari is the region where Naatamo is
+# V(net)$name <- profs2
+# V(net)$nat_prof <- profs2 %in% nat_profs
+#
+# lyt <- layout_nicely(net)
+# sig <- sigmaFromIgraph(net, lyt) |>
+#   addEdgeSize(oneSize = 0.5) |>
+#   addEdgeColors(oneColor = "#e1e0df") |>
+#   addNodeColors(colorAttr = "eci_svd", colorPal = "Paired") |>
+#   addNodeSize(oneSize = 2)
+#
+# sig
+#
+# # htmlwidgets::saveWidget(sig, file= "img/finland_net.html", background = "#191919")
+#
+# ## network of jobs given the places where they occur
+# plot.igraph(
+#   net, layout = lyt, vertex.color = ifelse(V(net)$eci_svd, "#f1a340", alpha("grey50", 0.5)),
+#   vertex.size =  ifelse(V(net)$Inari, 5, 3),
+#   vertex.label = NA, vertex.frame.color = ifelse(V(net)$name %in% nat_profs, "red", NA),
+#   vertex.alpha = 0.5, edge.width = 0.5)
+#
+# c <- ggplot(net, aes(x = x, y = y, xend = xend, yend = yend), layout = lyt) +
+#   geom_edges(color = "grey50", alpha = 0.15, linewidth = 0.25) +
+#   geom_nodes(aes(fill = eci_svd, alpha = eci_svd, size = Inari, color = nat_prof),
+#              shape = 21, show.legend = TRUE) +
+#   scale_alpha_manual(values = c(0.5,1)) +
+#   scale_size_manual("Inari \n ECI > 0", values = c(0.5,1)) +
+#   scale_fill_manual("Finland \n ECI > 0",values = c( "grey50", "#f1a340")) +
+#   scale_color_manual("Natural resources\ndependent occupations",values = c( "white", "red")) + guides(alpha = "none") + coord_fixed() +
+#   labs(tag = "C") +
+#   theme_void(base_size = 6) +
+#   theme(legend.position = "bottom", legend.title.position = "top")
+#
+# c
 
 
 skill_net <- graph_from_adjacency_matrix(
   (M_jobs > quantile(M_jobs, 0.9) ), "undirected")
 skill_net$weight <-  M_jobs
 V(skill_net)$eci_svd <- df_jobs |> arrange(jobs) |> pull(eci_job2) > 0
-#V(net)$Inari <- rca01[,] # Inari is the region where Naatamo is
-V(skill_net)$name <- fin_onet$occupation
-V(skill_net)$nat_prof <- fin_onet$occupation %in% nat_profs
+V(skill_net)$Inari <- rca01[,45] |> as.logical() # Inari is the region where Naatamo is
+V(skill_net)$name <- profs2
+V(skill_net)$nat_prof <- profs2 %in% nat_profs
+V(skill_net)$prop_towns <- rowSums(rca) / ncol(rca)
 lyt2 <- layout_nicely(skill_net)
 
 ## network of jobs given the skills
@@ -385,18 +422,39 @@ plot.igraph(
   vertex.frame.color = ifelse(V(skill_net)$name %in% nat_profs, "red", NA),
   vertex.alpha = 0.5, edge.width = 0.5)
 
+c <- ggplot(skill_net, aes(x = x, y = y, xend = xend, yend = yend), layout = lyt2 ) +
+  geom_edges(color = "grey50", alpha = 0.15, linewidth = 0.25) +
+  geom_nodes(
+    aes(fill = prop_towns, color = nat_prof),
+    shape = 21, show.legend = TRUE, size = 1, alpha = 0.8) +
+  #scale_alpha_manual(values = c(0.5,1)) +
+  #scale_size_manual("Inari \n ECI > 0", values = c(2,3)) +
+  scale_fill_viridis_c("Proportion of towns\nwith RCA > 1", option="E") +
+  scale_color_manual("Natural resources\ndependent occupations",values = c("grey50" , "red")) + guides(alpha = "none") +
+  labs(tag = "C") + coord_fixed() +
+  theme_void(base_size = 6) +
+  theme(legend.position = "bottom", legend.title.position = "top",
+        legend.key.height = unit(2,"mm"),
+        legend.key.width = unit(5,'mm'))
+
+c
+
+
+
 d <- ggplot(skill_net, aes(x = x, y = y, xend = xend, yend = yend), layout = lyt2 ) +
   geom_edges(color = "grey50", alpha = 0.15, linewidth = 0.25) +
-  geom_nodes(aes(fill = eci_svd, alpha = eci_svd, color = nat_prof),
-            shape = 21, show.legend = TRUE) +
-  scale_alpha_manual(values = c(0.5,1)) +
-  #scale_size_manual("Inari \n ECI > 0", values = c(2,3)) +
-  scale_fill_manual("Finland \n ECI > 0",values = c( "grey50", "#f1a340")) +
-  scale_color_manual("Natural resources\ndependent occupations",values = c("white" , "red")) + guides(alpha = "none") +
+  geom_nodes(
+    aes(fill = Inari, color = nat_prof),
+    shape = 21, show.legend = TRUE, size = 1, alpha = 0.8) +
+  #scale_alpha_manual(values = c(0.5,1)) +
+  #scale_size_manual("Kiruna \n ECI > 0", values = c(2,3)) +
+  #scale_fill_viridis_c("Proportion of towns with RCA > 1") +
+  scale_fill_manual("Inari: RCA > 0", values = c( "grey50", "#f1a340")) +
+  scale_color_manual("Natural resources\ndependent occupations",values = c("grey" , "red")) + guides(alpha = "none", color = "none") +
   labs(tag = "D") + coord_fixed() +
   theme_void(base_size = 6) +
   theme(legend.position = "bottom", legend.title.position = "top")
-
+d
 
 
 
@@ -474,7 +532,7 @@ ggsave(
 )
 
 
-library(tmap)
+ library(tmap)
 
 fin |>
   mutate(towns = case_when(

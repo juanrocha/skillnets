@@ -152,6 +152,18 @@ If something happens (e.g. an abrupt decline on the resources), people who depen
 Figure 1.
 Finland's economic complexity
 
+Sweden has an homogenous distribution of economic complexity, although lower diversity than Finland (Fig 2).
+The Shannon diversity is calculated over the professions with revealed comparative advantage (RCA\>1).
+We do not observe a geographical gradient of diversity distribution as we do in Finland.
+This also means that geographically the job markets are less specialized, that is, for a given profession there is on average a high probability of finding a similar comparative advantage across municipalities (relatively high proportion of towns with RCA \> 1, Fig 2B).
+However, some professions despite being present in a high proportion of municipalities are so specialized in terms of their skills that it is unlikely to find a job within the same municipality given their skill set (yellow nodes without links in Fig 2B).
+Examples of these specialized professions include dental hygienists or museum technicians.
+
+Kiruna is a municipality where the Arctic resilience assessment reported one case study on steel mining [ARA] concluding Kiruna was relatively resilient.
+We find indeed that many professions in Kiruna have a comparative advantage with respect to other municipalities (Fig 2C).
+Most natural resource dependent jobs are well connected to other jobs with comparative advantage within Kiruna, and connected by high similarity of skill sets in the network (i.e. the probability of succeeding on a job switch is high).
+In other words, if an abrupt change would occur that would impact livelihoods that depend on natural resources, the economic diversity of Kiruna is likely to absorb that labour force into other jobs that are similar and for which Kiruna has a strong market.
+
 Figure 2.
 Sweden's economic complexity
 
