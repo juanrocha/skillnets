@@ -10,6 +10,7 @@ output: html_document
 - Sweden: using english names duplicate some professions, currently the matrix of labour and skills have different number of jobs. To fix []. Can't be done, if one wants to use standard names across the two networks, then we need to use ONet classification and aggregate the swedish ones with the same onet code.
 
 **240808**
+
 There are errors on my code trying to reproduce ECI from matrix operations using for loops. The
 pacakge "EconGeo" of Piere-Alexander Balland has now functions that can correct my mistakes. Updating all, but be aware that some fuctions from EconGeo uses one mode projection matrixes, while the original formulations in Hidalgo and other papers I was using were using the two-mode projections. I will keep the old code at the end of the scrip commented out for archival purposes, so I don't make the same mistakes again.
 
