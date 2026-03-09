@@ -1,6 +1,15 @@
 library(tidyverse)
 library(tictoc)
 library(fs)
+library(PxWebApiData)
+
+url <- "https://data.ssb.no/api/pxwebapi/v2/tables/13926/data?lang=en&outputFormat=json-stat2&valuecodes[ContentsCode]=AntJobber&valuecodes[Tid]=2025K4&valuecodes[NACE2007]=*&codelist[NACE2007]=vs_NACE2007arb1&valuecodes[Region]=*&codelist[Region]=agg_KommSummerHist&valuecodes[Sektor]=ALLE&heading=ContentsCode,Tid,Sektor,NACE2007&stub=Region"
+
+dat <- ApiData(url, getDataByGET = TRUE)
+dat[[1]] |> as_tibble() |>
+  skimr::skim()
+
+
 
 #### Read data ####\
 # load onet

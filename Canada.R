@@ -21,7 +21,7 @@ canada_noc <- read_csv("data/Canada/noc_2021_version_1.0_-_classification_struct
 
 ## New high res classification: 2021
 tic()
-dat <- read_csv("~/Downloads/98100594-eng/98100594.csv") |>
+dat <- read_csv("data/Canada/98100594-eng/98100594.csv") |>
   janitor::clean_names()
 toc() # 50s
 # N = 55M obs, treat with care, over 15Gb on RAM
@@ -29,7 +29,7 @@ names(dat)
 head(dat)
 # geo: is geography. It contains country (Canada), ~10 Provinces, and admin-2. All = 174 units
 dat |> pull(geo) |> unique() |>
-  str_subset(pattern = "\\(", negate = FALSE) |>
+  str_subset(pattern = "\\(", negate = T) |>
   str_subset(pattern = "Canada", negate = TRUE)
 
 dat$gender_3 |> unique() # keep only "Total - Gender"
@@ -62,6 +62,11 @@ gc()
 
 lobstr::obj_size(dat)
 
+## extract geographic ids before creating matrix
+geo <- dat |>
+  select(geo, dguid) |>
+  unique()
+
 dat <- dat |>
   select(geo, noc = occupation_minor_group_national_occupational_classification_noc_2021_309a,
          ppl =  labour_force_status_3_total_labour_force_status_1) |>
@@ -78,8 +83,9 @@ job_mat <- dat |>
 
 ## rows are noc_codes in ascending order, 4 digits.
 
-dim(job_mat) # 13 regions, 162 professions left
+dim(job_mat) # 162 census regions, 162 professions left
 rownames(job_mat) <- dat$noc_code
+colnames(job_mat)
 
 ## Skills from Canadian classification. It has 7d depth, so how do I aggregate?
 can_skills <- read_csv("data/Canada/OaSIS/skills2025v1.csv")
@@ -191,12 +197,12 @@ cor(df_jobs2$rank_mor, df_jobs2$rank_svd)
 
 df_towns <- tibble(
   towns = rownames(job_mat) ,
-  shannon = entropy(exp(job_mat)), # the matrix was on log units, needs to be exp
+  shannon = entropy(exp((job_mat))), # the matrix was on log units, needs to be exp
   eci_mor = mort(t(rca))
 ) |> arrange(desc(eci_mor)) |>
   left_join(
     tibble(
-      towns = rownames(job_mat) [order(colSums(M_towns), decreasing = TRUE)],
+      towns = rownames(job_mat) [order(rowSums(M_towns), decreasing = TRUE)],
       eci_svd = (d_towns$d - mean(d_towns$d) / sd(d_towns$d))
     )
   ) |>
@@ -207,7 +213,18 @@ df_towns |>
   geom_point(aes(color = shannon, alpha = eci_svd > 0)) +
   scale_color_viridis_c()
 
+cor.test(df_towns$eci_mor, df_towns$eci_svd, method = "spearman")
 
+df_towns |>
+  ggplot(aes(rank_mor, shannon)) +
+  geom_point(aes(color = rank_svd)) +
+  geom_text(aes(label = ifelse(shannon< 5.8, towns, NA))) +
+  scale_color_viridis_c()
+
+df_towns <- df_towns |>
+  left_join(geo, by = c("towns" = "geo"))
+
+## No need of this anymore, matching with DGUID
 df_towns <- df_towns |>
   mutate(st = str_locate(towns, "\\(")[,"start"]) |>
   mutate(towns = str_sub(towns, 1L, st-2L)) |>
@@ -218,50 +235,64 @@ df_towns <- df_towns |>
   # )) |>
   select(-st)
 
+
+
 towns <- df_towns$towns
 
-### Voy aqui:
-### - weird shape in results of ranks
-### - check if there is more data for all canada, only 10 regions now: checked, failing
-### - make map and networks with current analysis
 
 #### Maps ####
+## slow plotting in RStudio: https://forum.posit.co/t/ggplot2-geom-sf-performance/3251/3
+## and: https://github.com/tidyverse/ggplot2/issues/2655
+#X11.options(type = "cairo")
+dev.off()
+dev.list()
+options(bitmapType = "cairo")
+
 ## It is not the best visualization because we have 160 towns with data, but the
 ## admin 3 has 5581 polygons, so most of them will be filled as NAs. Perhaps keep only
 ## networks.
-library(rgdal)
-lyrs <- ogrListLayers("~/Documents/Projects/DATA/GADM_maps/gadm41_CAN.gpkg")
-can <- st_read("~/Documents/Projects/DATA/GADM_maps/gadm41_CAN.gpkg", layer = "ADM_ADM_3")
-
-towns[!towns %in% can$NAME_3]
-can$NAME_3 |> str_subset("Port Hope")
-## Modify towns names to match admin 3 names:
-df_towns <- df_towns |>
-  mutate(towns = case_when(
-    towns == "Ottawa - Gatineau" ~ "Ottawa",
-    towns ==  "St. Catharines - Niagara" ~  "St. Catharines",
-    towns == "Kitchener - Cambridge - Waterloo" ~ "Kitchener",
-    towns == "Abbotsford - Mission" ~ "Abbotsford",
-    towns == "Saguenay" ~ "Petit-Saguenay",
-    towns == "Belleville - Quinte West"  ~ "Belleville",
-    towns == "Lloydminster" ~ "Lloydminster (Part)",
-    towns == "Port Hope" ~ "Port Hope and Hope",
-    .default = towns
-  ))
-
-df_towns$towns[!df_towns$towns %in% can$NAME_3]
-
+# library(rgdal)
+# lyrs <- ogrListLayers("~/Documents/Projects/DATA/GADM_maps/gadm41_CAN.gpkg")
+can0 <- st_read("~/Documents/Projects/DATA/GADM_maps/gadm41_CAN.gpkg", layer = "ADM_ADM_1")
+# can0 <- st_read("data/Canada/lpr_000b21a_e/lpr_000b21a_e.shp")
+can <- st_read("data/Canada/lcma000b21a_e/lcma000b21a_e.shp")
 can
 
 tic()
-can |>
-  left_join(
-    df_towns |> mutate(towns = case_when(towns == "Quebec" ~ "Québec", .default = towns)),
-    by = c("NAME_1" = "towns")) |>
+can0 |> #st_transform(crs = terra::crs(can)) |>
   ggplot() +
-  geom_sf(aes(fill = eci_svd)) +
-  scale_fill_viridis_c()
-toc() # 23s
+  geom_sf(fill = NULL)
+toc() # 266.554 sec elapsed incredibly slow | 3s in external quartz
+
+tic()
+can |>
+  left_join(df_towns, by = c("DGUID" = "dguid")) |>
+  tmap::tm_shape() +
+  tmap::tm_polygons(
+    fill = "eci_svd",
+    fill.scale = tmap::tm_scale_continuous(
+      limits = c(10, 60),
+      values = "scico.hawaii") )
+toc() #95s in normal RStudio
+
+tic()
+a <- can |>
+  left_join(df_towns, by = c("DGUID" = "dguid")) |>
+  ggplot() +
+  geom_sf(data =  can0 |> st_transform(crs = terra::crs(can)), fill = NA) +
+  geom_sf(aes(fill = shannon), show.legend = TRUE) +
+  scale_fill_viridis_c(name = "Shannon diversity") +
+  labs(tag = "A") + #scale_x_continuous(n.breaks = 2) +
+  theme_light(base_size = 6) +
+  theme(legend.title.position = "top",
+        legend.position = "bottom",
+        legend.key.width = unit(5,"mm"),
+        legend.key.height = unit(2, "mm"))
+toc() # 23s | 6.7s in external quartz
+
+lobstr::obj_size(can0)
+plot(can0)
+
 
 df_towns
 
@@ -308,6 +339,7 @@ V(net)$name <- canada_noc |>
   filter(code_noc_2021_v1_0 %in% colnames(M_jobs2)) |>
   select(code_noc_2021_v1_0, class_title) |> pull(class_title)
 V(net)$nat_prof <- colnames(M_jobs2) %in% nat_profs
+V(net)$prop_towns <- colSums(rca) / nrow(rca)
 
 
 lyt <- layout_nicely(net)
@@ -325,6 +357,52 @@ plot.igraph(
   vertex.size =  ifelse(V(net)$st_johns, 5, 3),
   vertex.label = NA, vertex.frame.color = ifelse(V(net)$nat_prof, "red", NA),
   vertex.alpha = 0.5, edge.width = 0.5)
+
+
+b <- ggplot(net, aes(x = x, y = y, xend = xend, yend = yend), layout = lyt ) +
+  geom_edges(color = "grey50", alpha = 0.15, linewidth = 0.25) +
+  geom_nodes(
+    aes(fill = prop_towns, color = nat_prof),
+    shape = 21, show.legend = TRUE, size = 1, alpha = 0.8) +
+  #scale_alpha_manual(values = c(0.5,1)) +
+  #scale_size_manual("Inari \n ECI > 0", values = c(2,3)) +
+  scale_fill_viridis_c("Proportion of towns\nwith RCA > 1", option="E") +
+  scale_color_manual("Natural resources\ndependent occupations",values = c("grey50" , "red")) +
+  guides(alpha = "none") +
+  labs(tag = "B") + coord_fixed() +
+  theme_void(base_size = 6) +
+  theme(legend.position = "bottom", legend.title.position = "top",
+        legend.key.height = unit(2,"mm"),
+        legend.key.width = unit(5,'mm'))
+
+b
+
+c <- ggplot(net, aes(x = x, y = y, xend = xend, yend = yend), layout = lyt ) +
+  geom_edges(color = "grey50", alpha = 0.15, linewidth = 0.25) +
+  geom_nodes(
+    aes(fill = st_johns, color = nat_prof),
+    shape = 21, show.legend = TRUE, size = 1, alpha = 0.8) +
+  #scale_alpha_manual(values = c(0.5,1)) +
+  #scale_size_manual("Kiruna \n ECI > 0", values = c(2,3)) +
+  #scale_fill_viridis_c("Proportion of towns with RCA > 1") +
+  scale_fill_manual("St. John's: RCA > 0", values = c( "grey50", "#f1a340")) +
+  scale_color_manual("Natural resources\ndependent occupations",values = c("grey" , "red")) +
+  guides(alpha = "none", color = "none") +
+  labs(tag = "C") + coord_fixed() +
+  theme_void(base_size = 6) +
+  theme(legend.position = "bottom", legend.title.position = "top")
+c
+
+
+a+b+c + plot_layout(guides="collect", widths = c(1.2, 1,1)) & theme(legend.position = "bottom")
+
+ggsave(
+  filename = "fig3_canada.png", path = "img/",
+  plot = (a+b+c+ plot_layout(guides="collect", widths = c(1.2, 1,1)) ), device = "png", bg = "white", dpi = 400,
+  width = 7, height = 2.5
+)
+
+
 
 
 #### Subregional ####
@@ -446,3 +524,27 @@ cats # 10 occupations, 20 industries
 # dim(can_mat) # 247 jobs, 176 skills | using ONET professions, not Canadian ones.
 # with canadian profs there will be >400 but then results from skill nets and
 # occupation spaces wont be comparable.
+
+
+# towns[!towns %in% can$CMANAME]
+# can$CMANAME[!can$CMANAME %in% towns]
+#
+#
+# can$NAME_3 |> str_subset("Port Hope")
+# ## Modify towns names to match admin 3 names:
+# df_towns <- df_towns |>
+#   mutate(towns = case_when(
+#     towns == "Ottawa - Gatineau" ~ "Ottawa",
+#     towns ==  "St. Catharines - Niagara" ~  "St. Catharines",
+#     towns == "Kitchener - Cambridge - Waterloo" ~ "Kitchener",
+#     towns == "Abbotsford - Mission" ~ "Abbotsford",
+#     towns == "Saguenay" ~ "Petit-Saguenay",
+#     towns == "Belleville - Quinte West"  ~ "Belleville",
+#     towns == "Lloydminster" ~ "Lloydminster (Part)",
+#     towns == "Port Hope" ~ "Port Hope and Hope",
+#     .default = towns
+#   ))
+#
+# df_towns$towns[!df_towns$towns %in% can$NAME_3]
+#
+# can

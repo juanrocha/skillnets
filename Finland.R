@@ -13,7 +13,7 @@ tic()
 dat <- readxl::read_xlsx(
   path = "data/Finland/Municipality_4digits_2010_2019_FIN.xlsx",
   skip = 6)
-toc() #17s
+toc() #3s
 
 pop <- read_csv(file = "data/Finland/population_001_11s1_2023_20241108-190513.csv")
 
@@ -97,9 +97,9 @@ df_match |> left_join(onet_occ) |>
 ## Matrix for Finland
 dat |>
   select(-isco4_name_sv, -code_name_isco4_en, -code_name_isco4_sv) |>
-  mutate(employed_persons = case_when(employed_persons == "…" ~ "0",
+  mutate(employed_persons = case_when(employed_persons == "…" ~ "2",
                                       TRUE ~ employed_persons)) |>
-  mutate(employed_persons = as.numeric(employed_persons)) |>
+  mutate(employed_persons = as.numeric(employed_persons) |> log1p()) |>
   filter(!str_detect(code_isco4, "\\d\\.")) |>
   # negating the following results in army workers, but they do not exist on onet skills
   filter(code_isco4 %in% df_match$code_isco4) |>
@@ -219,7 +219,7 @@ cor(df_jobs$rank_mor, df_jobs$rank_svd)
 fin2019 <- dat |>
   filter(year == 2019) |>
   select(-isco4_name_sv, -code_name_isco4_en, -code_name_isco4_sv) |>
-  mutate(employed_persons = case_when(employed_persons == "…" ~ "0",
+  mutate(employed_persons = case_when(employed_persons == "…" ~ "2",
                                       TRUE ~ employed_persons)) |>
   mutate(employed_persons = as.numeric(employed_persons)) |>
   filter(!str_detect(code_isco4, "\\d\\.")) |> #select(isco4_name_en, code_isco4) |> unique() |> print(n=40)
@@ -238,6 +238,8 @@ fin2019 <- dat |>
   # working on log-units
   mutate(employed_persons = log1p(employed_persons)) |>
   ungroup() |>
+  # organize municipalities alphabetically, useful later
+  arrange(municipality_name_en) |>
   pivot_wider(
     names_from = municipality_name_en, values_from = employed_persons, values_fill = 0)
 
@@ -251,13 +253,19 @@ fin2019 <- dat |>
 
 zero_cols <- fin2019 |> map_lgl(.f = function(x) ifelse(is.character(x), TRUE, sum(x) > 0))
 all(zero_cols) # no need to delete municipalities
-fin2019 |> rowwise() |>
-  mutate(zero_rows = sum(Akaa:Luhanka)>0) |>
-  filter(zero_rows == FALSE)
+# thsi doesn't work
+# fin2019 |>
+#   select(where(is.numeric)) |>
+#   rowwise() |>
+#   mutate(zero_rows = sum(`Akaa`:`Äänekoski`)) |>
+#   select(Alajärvi, zero_rows) |>
+#   filter(zero_rows ==0 )
 fin2019 |> unique()
 
 #skimr::skim(fin2019)
 job_mat <- as.matrix(fin2019 |> select(-1))
+
+all(job_mat |> rowSums() > 0)
 
 dim(job_mat) # 300 jobs, 308 municipalities, 13 jobs and 1 town removed due to zeroes. The municipality removed is Sottunga (309)
 # 100 jobs removed when switching to ONET classification
@@ -477,6 +485,123 @@ sig
 #     file = "img/finland_heatmap.html", width = 300, height = 300)
 
 
+#### Occupations space across years ####
+## Matrix for Finland
+fin_2010_19 <- dat |>
+  #filter(year == 2019) |>
+  select(-isco4_name_sv, -code_name_isco4_en, -code_name_isco4_sv) |>
+  mutate(employed_persons = case_when(employed_persons == "…" ~ "2",
+                                      TRUE ~ employed_persons)) |>
+  mutate(employed_persons = as.numeric(employed_persons)) |>
+  filter(!str_detect(code_isco4, "\\d\\.")) |> #select(isco4_name_en, code_isco4) |> unique() |> print(n=40)
+  # negating the following results in army workers, but they do not exist on onet skills
+  filter(code_isco4 %in% df_match$code_isco4) |>
+  select(-municipality_code, -municipality_name_sv) |>
+  #pivot_wider(names_from = municipality_name_en, values_from = employed_persons, values_fill = 0) |>
+  left_join(df_match |> left_join(onet_occ)) |>
+  group_by(title, municipality_name_en, year) |>
+  # sum people by profession given that some onet profs are duplicates:
+  summarize(employed_persons = sum(employed_persons, na.rm = TRUE)) |>
+  # remove zero sum rows in the matrix
+  filter(sum(employed_persons) > 0) |>
+  ungroup() |> group_by(municipality_name_en, year) |>
+  filter(sum(employed_persons) > 0) |>
+  # working on log-units
+  mutate(employed_persons = log1p(employed_persons)) |>
+  ungroup() |>
+  # organize municipalities alphabetically, useful later
+  arrange(municipality_name_en) |>
+  split(~year) |>
+  map(function(x) x |> select(-year) |>
+        pivot_wider(
+    names_from = municipality_name_en, values_from = employed_persons, values_fill = 0))
+
+## test for zero sum rows or cols
+map( fin_2010_19, .f = function(y) map_lgl(y, .f = function(x)
+  ifelse(is.character(x), TRUE, sum(x) > 0)) |> all()) # all non-zero cols
+
+## test for zero col sums:
+map(fin_2010_19,
+    .f = function(x) {
+      csms <- x |> select(-title) |>
+        as.matrix() |>
+        colSums()
+      all(csms>0)}
+     )
+
+job_mats <- map(
+  fin_2010_19,
+  .f = function(x) select(x, -title) |> as.matrix())
+
+
+job_mat <- fin_2010_19 |>
+  map(function(x) select(x, -1) |> as.matrix())
+
+## RCA across time ##
+# job_mat is a list, each element a year of the matrix of jobs per municipality
+rca <- job_mats |> map(location_quotient, binary = TRUE)
+
+## Relatedness:
+M_towns <- rca |> map(function(x) relatedness(t(x) %*% x, method = "prob"))
+M_jobs2 <-  rca |>  map( function(x) relatedness(x %*% t(x), method = "prob")) # jobs given their geography, not skills
+
+## SVD: singular value decomposition method
+d_jobs <- M_jobs2 |> map(svd)
+d_towns <- M_towns |> map(svd)
+
+df_jobs2 <- pmap(.l = list(fin_2010_19, rca, M_jobs2, d_jobs), function(w,x,y,z){
+  tibble(
+    jobs = w$title,
+    eci_mor = mort(t(x)),
+    herfindahl = herfindahl(x), krugman = krugman_index(x)
+  ) |> arrange(desc(eci_mor))  |>
+    left_join(
+      tibble(
+        jobs = w$title[order(rowSums(y), decreasing = TRUE)] ,
+       eci_svd = ( z$d - mean(z$d)) / sd(z$d)
+      )
+    )  |>
+    mutate(rank_mor = order(eci_mor), rank_svd = order(eci_svd))
+})
+
+
+## correlated
+map2(df_jobs2, names(df_jobs2), function(x,y){ x$year = y; return(x)}) |>
+  bind_rows() |>
+  ggplot(aes(rank_mor, rank_svd)) +
+  geom_point(aes(color = eci_svd > 0))
+
+df_towns2 <-  pmap(.l = list(job_mats, rca, M_towns, d_towns), function(w,x,y,z){
+  tibble(
+    towns = colnames(w),
+    shannon = entropy(t(exp(w))),
+    eci_mor = mort(x), eci_eig = kci(t(x)),
+    herfindahl = herfindahl(t(x)), krugman = krugman_index(t(x)),
+    ubiquity = ubiquity(x), diversity = EconGeo::diversity(t(x))
+  ) |> arrange(desc(eci_mor))  |>
+    left_join(
+      tibble(
+        towns = colnames(w)[order(rowSums(y), decreasing = TRUE)] ,
+        eci_svd = ( z$d - mean(z$d)) / sd(z$d)
+      )
+    )  |>
+    mutate(rank_mor = order(eci_mor), rank_svd = order(eci_svd))
+})
+
+map2(df_towns2, names(df_towns2), function(x,y){ x$year = y; return(x)}) |>
+  bind_rows() |>
+  ggplot(aes(rank_mor, rank_svd)) +
+  geom_point(aes(color = shannon)) +
+  facet_wrap(~year)
+
+map2(df_towns2, names(df_towns2), function(x,y){ x$year = y; return(x)}) |>
+  bind_rows() |>
+  ggplot(aes(year, rank_svd)) +
+  geom_line(aes(group = towns, color = shannon), alpha = 0.4)
+
+
+## Saving the ECI calculations for Finland over time to use later in regressions.
+save(df_towns2, df_jobs2, file = "data/Finland/ECI_Finland.Rda")
 
 #### Maps ####
 library(sf)

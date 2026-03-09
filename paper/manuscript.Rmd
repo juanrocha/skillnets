@@ -1,13 +1,15 @@
 ---
-title: "Skill and labour networks as proxy of adaptive capacity"
+title: "Skill and labour diversity as proxies of adaptive capacity"
 author: |
-    | \small Juan C. Rocha^1,2^, Kevin Berry^3^, Marianne Faladeau-Cote^4^, Anne-Sophie Crépin^5^, Susa Niiraren^1^, Sirkku K. Juhola^6^
+    | \small Juan C. Rocha^1,2^, Kevin Berry^3^, Anne-Sophie Crépin^4^, Marianne Faladeau-Côte^5^, Sirkku K. Juhola^6^, 
+    | \small Susa Niiraren^1^, Johanna Yletyinen^7^
     | \footnotesize ^1^Stockholm Resilience Centre, Stockholm University, 10691, Stocholm, Sweden
     | \footnotesize ^2^The Anthropocene Laboratory, The Royal Swedish Academy of Sciences, Stockholm, Sweden
     | \footnotesize ^3^University of Alaska Anchorage, Anchorage, USA
-    | \footnotesize ^4^University ..., Candada
-    | \footnotesize ^5^Beijer Institute of Ecological Economics, The Royal Swedish Academy of Sciences, Stockholm, Sweden
-    | \footnotesize ^5^Helsinki Institute of Sustainability Science, University of Helsinki, Helsinki, Finland
+    | \footnotesize ^4^Beijer Institute of Ecological Economics, The Royal Swedish Academy of Sciences, Stockholm, Sweden
+    | \footnotesize ^5^Teluq University, Candada
+    | \footnotesize ^6^Helsinki Institute of Sustainability Science, University of Helsinki, Helsinki, Finland
+    | \footnotesize ^7^Department of Biological and Environmental Science, University of Jyväskylä, Finland
     | \small \texttt{\href{mailto:juan.rocha@su.se}{\nolinkurl{juan.rocha@su.se}}}
 output:
   pdf_document:
@@ -31,13 +33,13 @@ urlcolor: blue
 header-includes:
 - \usepackage{dcolumn, rotating, longtable, float, array, tabularx, inputenc}
 
-- \usepackage[switch]{lineno}
+#- \usepackage[switch]{lineno}
 # - \setmainfont{Arial}
 - \renewcommand{\abstractname}{}
-- \graphicspath{{figures/}}
+- \graphicspath{{figs/}}
 - \usepackage[margin=2.5cm]{geometry}
-- \linenumbers
-- \usepackage{setspace}
+#- \linenumbers
+#- \usepackage{setspace}
 ---
 
 # Outline
@@ -116,14 +118,17 @@ Here we use knowledge networks to rank places in three regions of the Arctic and
 **Data:** To study knowledge networks we used publicly available labour data statistics for Sweden, Finland, and Canada.
 For Sweden we use a 3 digit occupation classification with number of workers per professions (N=149) per municipality (N=291) for 2019.
 For Finland we use a 4 digit classification of 459 occupations in 309 municipalities for the years 2010-2019.
-[In Canada we used a 4 digit classification of 500 occupations for 2016 in 10 regions located in the Arctic that are part of Nunavut, Northern territories and Yukon.] Each country has its own occupation classification and we did not modify them to make them directly comparable.
+In Canada we used a 4 digit classification of 162 occupations for 2021 in 160 census regions.
+Each country has its own occupation classification and we did not modify them to make them directly comparable.
 However, we used the O\*NET database from the US Department of Labour, which maps the importance of 117 workplace skills, knowledge and abilities for the performance of 873 occupations [@onet3].
-To make each country classification compatible with O\*NET, we manually matched classification codes used in Sweden, Finland and Canada, with 4 digit classification level of O\*NET.
-Appendix 1 present the lists of occupations per country and the list of skills used from O\*NET.
+To make each country classification compatible with O\*NET, we manually matched classification codes used in Sweden and Finland, with 4 digit classification level of O\*NET.
+Canada has its own occupations and skills information systems (OaSIS), we used their 2025 version 1.0 classification.
+Appendix 1 present the lists of occupations per country and the list of skills used from O\*NET; while Table 1 presents a summary of the datasets used and discarded.
 
 **Knowledge networks**: We constructed two types of knowledge networks based on labour and skill data.
 For each country we transformed the data into a matrix $A_{i,j}$ with $i$ number of municipalities and $j$ number of occupations, where $a_{i,j}$ is the number of workers in occupation $i$ of municipality $j$.
-We then matched the occupation classification of each country with that of O\*NET such that we could construct a skill network $S_{i,j}$ with $i$ skills and $j$ occupations.
+We then matched the occupation classification of Sweden and Finland with that of O\*NET such that we could construct a skill network $S_{i,j}$ with $i$ skills and $j$ occupations.
+For Canada we used their own skills classifcations.
 With the matrices $A_{i,j}$ and $S_{i,j}$ we first computed the revealed comparative advantage (RCA) or location quotient for each country, where $R_{i,j} = a_{i,j} * \Sigma A_{i,j} / \Sigma A_{i} * \Sigma A_{j}$.
 $R_{i,j}$ is then a normalized specialization matrix with the ratio of the observed and expected economic activity of each location, if $r_{i,j} > 1$ it means location $i$ is considered specialized in activity $j$.
 
@@ -134,40 +139,65 @@ Finally we computed the economic complexity index (also known as knowledge compl
 We report the Z-transformed version of the complexity index, values \> 0 represent locations or professions with higher complexity than the average for each dataset [@hidalgo2021].
 
 **Migration**: Previous qualitative assessments of resilience have linked out migration rates with lack of opportunities, loss of livelihoods and erosion of traditional knowledge [@Carson2016].
-We then hypothesize that a statistical relationship between knowledge complexity and out migration rates can be detected in our data set.
+Thus, we hypothesize that a statistical relationship between knowledge complexity and out migration rates can be detected in our data set.
 We have time varying data for Finland for the years 2010-2019, so we repeated the analysis for each year and studied the change on knowledge complexity over time per municipality.
 We use a panel model with fixed effects to explore how changes in economic complexity explain changes in migration rates.
+
+**Comparisons to the Arctic Resilience Assessment:** Previous resilience assessments for the Arctic have relied heavily in expert elicitation, participatory work, secondary sources, and qualitative comparative methods [@Carson2016; @rocha2022].
+These methods have limited capacity to scale up to larger regions, or updating that reflects changes of resilience, adaptability or transformability over time.
+One of the goals of the present study is to explore if current public data sets enable the upscaling of resilience assessments.
+To that end, we present the results comparing previously studied cases [@Carson2016, @rocha2022] with the current labour and skills network analysis.
 
 # Results
 
 Finland's economic complexity is concentrated in the areas close to the capital Helsinki.
-These regions have on average higher diversity of professions on which each municipality has revealed competitive advantage (Fig 1).
+These regions have on average higher diversity of professions on which each municipality has revealed competitive advantage (Fig \ref{fig:fin}).
 The complexity index calculated with the method of reflections or singular value decomposition have in general good agreement, with a correlation coefficient of 0.97 on the skillspace and 0.94 on the occupations space.
 While there is relative lower diversity in the Arctic region in Finland, municipalities such as Enontekiö, Utsjoki, Savukoski, or Pelkosenniemi have relatively high diversity and stronger competitive advantage, while Inari, Kittilä, or Sodankylä are on the lower end of the spectrum.
-One of the cases documented in the Arctic resilience assessment is the Skolt Sámi community in the Näätämö river (Inari highlighted in orange in Fig 1B), who have adapted to climate and social pressures in their salmon fishery management [@Huitric2016].
-Taking Inari as an example, we show that professions whose livelihoods depend on natural resources have relatively low competitive advantage in the Arctic.
-If something happens (e.g. an abrupt decline on the resources), people who depend on nature based livelihoods have low probability to switch to other jobs in these communities given the skill set of their jobs, and the job offers on which the municipality has competitive advantage (Fig 1D).
+One of the cases documented in the Arctic resilience assessment is the Skolt Sámi community in the Näätämö river (Inari highlighted in orange in Fig \ref{fig:fin}B), who have adapted to climate and social pressures in their salmon fishery management [@Huitric2016].
+Taking Inari as an example, we show that professions whose livelihoods depend on natural resources have relatively low revealed comparative advantage in the Arctic.
+If something happens (e.g. an abrupt decline on the resources), people who depend on nature based livelihoods have low probability to switch to other jobs in these communities given the skill set of their jobs, and the job offers on which the municipality has competitive advantage (Fig \ref{fig:fin}D).
 
-Figure 1.
-Finland's economic complexity
+\begin{figure*}[ht]
+\centering
+\includegraphics[width = 5in, height = 5in]{fig1_Finland}
+\caption{\textbf{Finland's economic complexity} Economic complexity is measured with both the method of reflections and singular value decomposition, finding similar rankings, both of them correlated with Shannon diversity (A). Both diversity and complexity of labour skills tends to be higher around Helsinki metropolitan area (B). Jobs are connected if the probability of sharing skills is higher than 0.9, the network in (C) shows the proportion of towns with relative comparative advantage in Finland, while (D) zooms into Inari, a municipality up north (highlighted in orange in B) where previous resilience assessment have documented case studies. Jobs that depend on natural resources tend to have low connectivity, some of them completely isolated, confirming low resilience.}
+\label{fig:fin}
+\end{figure*}
 
-Sweden has an homogenous distribution of economic complexity, although lower diversity than Finland (Fig 2).
+Sweden has an homogeneous distribution of economic complexity, although lower diversity than Finland (Fig \ref{fig:swe}).
 The Shannon diversity is calculated over the professions with revealed comparative advantage (RCA\>1).
 We do not observe a geographical gradient of diversity distribution as we do in Finland.
-This also means that geographically the job markets are less specialized, that is, for a given profession there is on average a high probability of finding a similar comparative advantage across municipalities (relatively high proportion of towns with RCA \> 1, Fig 2B).
-However, some professions despite being present in a high proportion of municipalities are so specialized in terms of their skills that it is unlikely to find a job within the same municipality given their skill set (yellow nodes without links in Fig 2B).
+This also means that geographically the job markets are less specialized, that is, for a given profession there is on average a high probability of finding a similar comparative advantage across municipalities (relatively high proportion of towns with RCA \> 1, Fig \ref{fig:swe}B).
+However, some professions despite being present in a high proportion of municipalities are so specialized in terms of their skills that it is unlikely to find a job within the same municipality given their skill set (yellow nodes without links in Fig 2\ref{fig:swe}B).
 Examples of these specialized professions include dental hygienists or museum technicians.
 
 Kiruna is a municipality where the Arctic resilience assessment reported one case study on steel mining [@Huitric2016] concluding Kiruna was relatively resilient.
-We find indeed that many professions in Kiruna have a comparative advantage with respect to other municipalities (Fig 2C).
+We find indeed that many professions in Kiruna have a comparative advantage with respect to other municipalities (Fig \ref{fig:swe}C).
 Most natural resource dependent jobs are well connected to other jobs with comparative advantage within Kiruna, and connected by high similarity of skill sets in the network (i.e. the probability of succeeding on a job switch is high).
 In other words, if an abrupt change would occur that would impact livelihoods that depend on natural resources, the economic diversity of Kiruna is likely to absorb that labour force into other jobs that are similar and for which Kiruna has a strong competitive advantage.
 
-Figure 2.
-Sweden's economic complexity
+\begin{figure*}[ht]
+\centering
+\includegraphics[width = 7in, height = 3in]{fig2_sweden}
+\caption{\textbf{Sweden's economic complexity} The diversity of jobs that have revealed comparative advantage is more homogeneous in Sweden (A). The network of jobs for the country (B) and the municipality of Kiruna (C) shows a similar pattern to Finland, with high polarization and several isolates. Natural resource dependent jobs are well connected, except for XYZ. }
+\label{fig:swe}
+\end{figure*}
 
-Figure 3.
-Arctic Canada's economic complexity
+Canada's economic complexity is highest in cities such as Halifax, Winnipeg, Vancouver and Montreal; while lowest in Hawkesbury, Campbellton, or Elliot Lake.
+The data for Canada is aggregated per census track, so small Arctic communities dealt with in previous resilience assessments are not considered at this level of granularity (Igloglik, Cape Dorset).
+Similar to the other countries analysed, there is a high rank correlation between the economic complexity index calculated with the method of reflections or singular value decomposition ($\rho$ = 0.99, p \<\< 0.01), as well as between the complexity index and Shannon diversity (Pearson's product moment correlation 0.7, p \<\< 0.01).
+On average, natural resource dependent occupations are well connected in the network, meaning that there is a non-zero probability of finding a related job in the case of a resource collapse.
+However, there are a few professions relatively isolated including farmers and fishers (left triangle on Fig 3B), or people practicing natural healing or traditional medicine (isolate node in Fig 3B).
+
+The Arctic resilience assessment reported Newfoundland as a region with low resilience, primarily due to the collapse of the cod fishery in 1990s [@Carson2016; @rocha2022].
+
+\begin{figure*}[ht]
+\centering
+\includegraphics[width = 7in, height = 2.5in]{fig3_canada}
+\caption{\textbf{Canada's economic complexity} The labour data for Canada is aggregated at census units (A) missing some of the low density population communities in the higher Arctic. The network of jobs for the country (B) and the census units (C) shows a similar pattern of high polarization but fewer isolates. Natural resource dependent jobs are relatively well connected, especially for more technical or machine operations oriented. However fishers and farmers while connected have lower options.}
+\label{fig:can}
+\end{figure*}
 
 Figure 4.
 Knowledge complexity and migration.
@@ -175,4 +205,5 @@ Knowledge complexity and migration.
 # Discussion
 
 -   Data limitations
+-   Polarization of labour skills
 -   Assessing A&T capacities at a higher resolution from public data is difficult because of data anonymity. Already for Norway and Canada, some data is made confidential (transformed into missing value) to avoid identification of people or companies. At such scale, qualitative approaches may be more suited to approximate A&T capacities [@rocha2022].
