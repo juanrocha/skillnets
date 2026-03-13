@@ -157,11 +157,12 @@ df_jobs <- tibble(
       jobs = colnames(M_jobs)[order(colSums(M_jobs))],
       eci_svd = ( e_jobs$d - mean(e_jobs$d)) / sd(e_jobs$d)
     )
+  ) |> mutate(
+    rank_mor = order(eci_mor), rank_svd = order(eci_svd)
   )
 
 ggplot(df_jobs) +
-  geom_point(aes(eci_mor, eci_svd)) +
-  scale_y_continuous(trans = "log1p")
+  geom_point(aes(rank_mor, rank_svd))
 
 #### Occupations space ####
 ## Matrix for Sweden: logtransform because of the long tails
@@ -191,7 +192,7 @@ rowSums(job_mat) |> as.logical() |> all()
 rca <- location_quotient(job_mat, binary = TRUE)
 
 ## Effective use = phi or theta aka proximity
-phi <- herfindahl(rca)
+phi <- herfindahl(job_mat)
 
 ## Relatedness:
 # w <- rca01 %*% phi / colSums(phi)
@@ -214,6 +215,8 @@ spectralGP::image_plot(
 df_jobs2 <- tibble(
   jobs = colnames(M_jobs2),
   eci_mor = mort((rca)),
+  herfindahl = herfindahl(t(job_mat)), krugman = krugman_index(t(job_mat)),
+  diversity = EconGeo::diversity(rca01)
 ) |> arrange(desc(eci_mor)) |>
   left_join(
     tibble(
@@ -226,7 +229,7 @@ df_jobs2 <- tibble(
 
 df_jobs2 |>
   ggplot(aes(rank_mor, rank_svd)) +
-  geom_point(aes(color = eci_svd > 0))
+  geom_point(aes(color = diversity))
 
 cor(df_jobs2$rank_mor, df_jobs2$rank_svd)
 
@@ -240,8 +243,10 @@ cor(df_jobs2$rank_mor, df_jobs2$rank_svd)
 
 df_towns <- tibble(
   towns = rownames(job_mat) |> str_remove(pattern = "\\d{4} ") ,
-  shannon = entropy(exp(job_mat)), # the matrix was on log units, needs to be exp
-  eci_mor = mort(t(rca))
+  shannon = entropy((job_mat)), # the matrix was on log units, needs to be exp
+  eci_mor = mort(t(rca)),
+  diversity = EconGeo::diversity(rca),
+  herfindahl = herfindahl(job_mat), krugman = krugman_index(job_mat)
 ) |> arrange(desc(eci_mor)) |>
   left_join(
     tibble(
@@ -256,6 +261,7 @@ df_towns |>
   geom_point(aes(color = shannon, alpha = eci_svd > 0)) +
   scale_color_viridis_c()
 
+save(df_towns, df_jobs, df_jobs2, file = "data/Sweden/ECI_Sweden.Rda")
 
 # df_towns |>
 #   arrange(eci_mor) |>
@@ -472,7 +478,7 @@ c
 a+b+c + plot_layout(guides="collect", widths = c(1.2, 1,1)) & theme(legend.position = "bottom")
 
 ggsave(
-  filename = "fig2_sweden.png", path = "img/",
+  filename = "fig2_sweden.png", path = "paper/figs/",
   plot = (a+b+c+ plot_layout(guides="collect", widths = c(1.2, 1,1)) ), device = "png", bg = "white", dpi = 400,
   width = 7, height = 3
 )

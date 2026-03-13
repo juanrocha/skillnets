@@ -207,3 +207,30 @@ Knowledge complexity and migration.
 -   Data limitations
 -   Polarization of labour skills
 -   Assessing A&T capacities at a higher resolution from public data is difficult because of data anonymity. Already for Norway and Canada, some data is made confidential (transformed into missing value) to avoid identification of people or companies. At such scale, qualitative approaches may be more suited to approximate A&T capacities [@rocha2022].
+
+## Acknowledgements
+
+This work has been supported through the Belmont Forum (Formas) grant 2019-02316 to the MARAT project (2020-2023), and smaller grants that have supported collaborative workshops beyond the initial project from Arctic Venue (2024), the International Arctic Science Committee (2025), and the Nordic Council of Ministers (2026).
+
+# References {.unnumbered}
+
+::: {#refs}
+:::
+
+\onecolumn
+
+# Supplementary Material {#sec:SM}
+
+\renewcommand\thefigure{S\arabic{figure}}
+\renewcommand\thetable{S\arabic{table}}
+\setcounter{table}{0}
+\setcounter{figure}{0}
+\begin{figure*}[ht]
+\centering
+\includegraphics[width = 5in, height = 5in]{fig1_arctic_map}
+\caption{\textbf{Arctic case studies} The Arctic Resilience report \cite{Carson2016} and subsequent work \cite{rocha2022} provided a qualitative assessment of Arctic communities in the Arctic subject to different pressures. Here we compare their qualitative findings with a data drive approach based on public statistics on labour markets and skills diversity.}
+\label{fig:map}
+\end{figure*}
+
+-   Pairs plots for ECI index with different methods
+-   

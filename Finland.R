@@ -146,6 +146,8 @@ fin_onet <- fin_onet |> ungroup() |>
 
 profs <- fin_onet$title
 
+## run occupation space section to get profs2 here
+
 fin_mat <- fin_onet |> ungroup() |>
   filter(title %in% profs2) |>
   select(-c(onet:title)) |>
@@ -163,7 +165,7 @@ prblm <- fin_onet |> filter(is.na(`Active Listening`)) #|>
 rca01 <- location_quotient(fin_mat, binary = TRUE)
 
 ## Effective use = phi or theta aka proximity
-#phi <- Herfindahl(fin_mat) # Herfindahl is a proxy of diversity
+#phi <- Herfindahl(fin_mat) # Herfindahl is a proxy of diversity, equivalent to Simpson index
 
 ## Relatedness: can be calculated with other methods of distance, but currently produces
 ## the probability of changing jobs.
@@ -210,7 +212,7 @@ df_jobs <- tibble(
 
 df_jobs |>
   ggplot(aes(rank_mor, rank_svd)) +
-  geom_point(aes(color = eci_job2 > 0))
+  geom_point(aes(color = herfindahl))
 
 cor(df_jobs$rank_mor, df_jobs$rank_svd)
 
@@ -277,7 +279,7 @@ profs2 <- fin2019$title # jobs with non-zero values on the municipalities
 rca <- location_quotient(job_mat, binary = TRUE)
 
 ## Effective use = phi or theta aka proximity
-#phi <- Herfindahl(rca)
+#phi <- Herfindahl(job_mat)
 
 ## Relatedness:
 # w <- rca01 %*% phi / colSums(phi)
@@ -302,7 +304,7 @@ d_towns <- svd(M_towns)
 df_jobs2 <- tibble(
   jobs = profs2,
   eci_mor = mort(t(rca)),
-  herfindahl = herfindahl(rca), krugman = krugman_index(rca)
+  herfindahl = herfindahl(job_mat), krugman = krugman_index(job_mat)
 ) |> arrange(desc(eci_mor)) |>
   left_join(
     tibble(
@@ -321,10 +323,10 @@ cor(df_jobs2$rank_mor, df_jobs2$rank_svd)
 
 df_towns <- tibble(
   towns = colnames(job_mat),
-  shannon = entropy(t(exp(job_mat))), # the matrix was on log units, needs to be exp
+  shannon = entropy(t((job_mat))), # the matrix was on log units, needs to be exp
   eci_mor = mort(rca),
   eci_eig = kci(t(rca)),
-  herfindahl = herfindahl(t(rca)), krugman = krugman_index(t(rca)),
+  herfindahl = herfindahl(t(job_mat)), krugman = krugman_index(t(job_mat)),
   ubiquity = ubiquity(rca), diversity = EconGeo::diversity(t(rca))
 ) |> arrange(desc(eci_mor)) |>
   left_join(
@@ -337,12 +339,13 @@ df_towns <- tibble(
 
 a <- df_towns |>
   ggplot(aes(rank_svd, rank_mor)) +
-  geom_point(aes(color = shannon, alpha = eci_svd > 0), size = 1) +
+  geom_point(aes(color = shannon), size = 1) +
   scale_color_viridis_c("Shannon diversity") +
-  scale_alpha_manual("ECI > 0", values = c(0.2,0.8)) +
+  #scale_alpha_manual("ECI > 0", values = c(0.2,0.8)) +
   labs(title = "Economic complexity", x = "Rank with singular value decomposition",
        y = "Rank with method of reflections", tag = "A") +
   coord_fixed() +
+  scale_x_reverse() + scale_y_reverse() +
   theme_light(base_size = 6) +
   theme(legend.position.inside = c(0.3, 0.8), legend.position = "inside",
         legend.key.width = unit(5,"mm"), legend.key.height = unit(2,"mm"),
@@ -350,6 +353,11 @@ a <- df_towns |>
         legend.key.spacing.x = unit(0.5,'mm'), legend.key.spacing.y = unit(0.5,'mm'),
         legend.box.background = element_blank())
 a
+
+## Note some of these metrics are identical, so avoid using them all in the results
+df_towns |> select(starts_with("eci")) |> GGally::ggpairs()
+df_towns |> select(starts_with("eci")) |> mutate(eci_svd = log1p(eci_svd)) |>  GGally::ggpairs()
+df_towns |> select(starts_with("rank")) |> GGally::ggpairs()
 
 #### Networks ####
 #library(network)
@@ -437,7 +445,7 @@ c <- ggplot(skill_net, aes(x = x, y = y, xend = xend, yend = yend), layout = lyt
     shape = 21, show.legend = TRUE, size = 1, alpha = 0.8) +
   #scale_alpha_manual(values = c(0.5,1)) +
   #scale_size_manual("Inari \n ECI > 0", values = c(2,3)) +
-  scale_fill_viridis_c("Proportion of towns\nwith RCA > 1", option="E") +
+  scale_fill_viridis_c("Proportion of towns\nwith RCA", option="E") +
   scale_color_manual("Natural resources\ndependent occupations",values = c("grey50" , "red")) + guides(alpha = "none") +
   labs(tag = "C") + coord_fixed() +
   theme_void(base_size = 6) +
@@ -549,11 +557,11 @@ M_jobs2 <-  rca |>  map( function(x) relatedness(x %*% t(x), method = "prob")) #
 d_jobs <- M_jobs2 |> map(svd)
 d_towns <- M_towns |> map(svd)
 
-df_jobs2 <- pmap(.l = list(fin_2010_19, rca, M_jobs2, d_jobs), function(w,x,y,z){
+df_jobs2 <- pmap(.l = list(fin_2010_19, rca, M_jobs2, d_jobs, job_mats), function(w,x,y,z,a){
   tibble(
     jobs = w$title,
     eci_mor = mort(t(x)),
-    herfindahl = herfindahl(x), krugman = krugman_index(x)
+    herfindahl = herfindahl(a), krugman = krugman_index(a)
   ) |> arrange(desc(eci_mor))  |>
     left_join(
       tibble(
@@ -574,9 +582,9 @@ map2(df_jobs2, names(df_jobs2), function(x,y){ x$year = y; return(x)}) |>
 df_towns2 <-  pmap(.l = list(job_mats, rca, M_towns, d_towns), function(w,x,y,z){
   tibble(
     towns = colnames(w),
-    shannon = entropy(t(exp(w))),
+    shannon = entropy(t(w)),
     eci_mor = mort(x), eci_eig = kci(t(x)),
-    herfindahl = herfindahl(t(x)), krugman = krugman_index(t(x)),
+    herfindahl = herfindahl(t(w)), krugman = krugman_index(t(w)),
     ubiquity = ubiquity(x), diversity = EconGeo::diversity(t(x))
   ) |> arrange(desc(eci_mor))  |>
     left_join(
@@ -591,7 +599,7 @@ df_towns2 <-  pmap(.l = list(job_mats, rca, M_towns, d_towns), function(w,x,y,z)
 map2(df_towns2, names(df_towns2), function(x,y){ x$year = y; return(x)}) |>
   bind_rows() |>
   ggplot(aes(rank_mor, rank_svd)) +
-  geom_point(aes(color = shannon)) +
+  geom_point(aes(color = diversity)) +
   facet_wrap(~year)
 
 map2(df_towns2, names(df_towns2), function(x,y){ x$year = y; return(x)}) |>
@@ -637,6 +645,7 @@ b <- fin |>
   #      # plot.background = element_rect(fill = "#191919")
   #      legend.key.width = unit(2,"mm"), legend.key.height = unit(5,"mm")
   #       )
+b
 
 b + geom_sf_label( data = (fin |>
   terra::vect() |>
@@ -655,6 +664,12 @@ ggsave(
   bg = "white", dpi = 500,
   plot = ((a+b)/(c+d + plot_layout(guides = "collect") & theme(legend.position = "bottom")))
 )
+
+
+save(df_towns, df_jobs, df_jobs2, file = "data/Finland/ECI_2019_Finland.Rda")
+
+
+
 
 
  library(tmap)

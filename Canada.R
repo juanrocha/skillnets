@@ -151,7 +151,7 @@ job_mat <- t(job_mat)
 rca <- location_quotient(job_mat, binary = TRUE)
 
 ## Effective use = phi or theta aka proximity
-phi <- herfindahl(rca)
+phi <- herfindahl(job_mat)
 
 ## Relatedness:
 # w <- rca01 %*% phi / colSums(phi)
@@ -170,8 +170,9 @@ spectralGP::image_plot(
   nlevel = 10, legend.width = 0.025, col = hcl.colors(10, "YlOrRd", rev = TRUE))
 
 df_jobs2 <- tibble(
-  jobs = colnames(M_jobs2),
+  jobs = colnames(job_mat),
   eci_mor = mort((rca)),
+  herfindahl = herfindahl(t(job_mat)), krugman = krugman_index(t(job_mat))
 ) |> arrange(desc(eci_mor)) |>
   left_join(
     tibble(
@@ -197,8 +198,9 @@ cor(df_jobs2$rank_mor, df_jobs2$rank_svd)
 
 df_towns <- tibble(
   towns = rownames(job_mat) ,
-  shannon = entropy(exp((job_mat))), # the matrix was on log units, needs to be exp
-  eci_mor = mort(t(rca))
+  shannon = entropy(((job_mat))), # the matrix was on log units, needs to be exp
+  eci_mor = mort(t(rca)),
+  herfindahl = herfindahl(job_mat), krugman = krugman_index(job_mat)
 ) |> arrange(desc(eci_mor)) |>
   left_join(
     tibble(
@@ -206,7 +208,7 @@ df_towns <- tibble(
       eci_svd = (d_towns$d - mean(d_towns$d) / sd(d_towns$d))
     )
   ) |>
-  mutate(rank_mor = order(eci_mor), rank_svd = order(eci_svd, decreasing = TRUE))
+  mutate(rank_mor = order(eci_mor), rank_svd = order(eci_svd))
 
 df_towns |>
   ggplot(aes(rank_svd, rank_mor)) +
@@ -239,6 +241,7 @@ df_towns <- df_towns |>
 
 towns <- df_towns$towns
 
+#save(df_towns, df_jobs, df_jobs2, file = "data/Canada/ECI_Canada.Rda")
 
 #### Maps ####
 ## slow plotting in RStudio: https://forum.posit.co/t/ggplot2-geom-sf-performance/3251/3
