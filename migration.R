@@ -176,8 +176,8 @@ df_towns2 |>
 
 
 df_towns2 |>
-  ggplot(aes(ubiquity, diversity)) +
-  geom_point(aes(color = diversity))
+  ggplot(aes(eci_eig, rank_mor)) +
+  geom_point(aes(color = shannon))
 
 a <- df_towns2 |>
   mutate(ratio = prop_inmig/ prop_outmig) |>
@@ -196,7 +196,7 @@ library(plm)
 df_towns2 <- pdata.frame(df_towns2, index = c("towns", "year"))
 head(df_towns2)
 
-frml <- "prop_outmig ~ log10(population_31_dec) + rank_mor + herfindahl + krugman +  indeg + outdeg + betw "
+frml <- "prop_outmig ~ log10(population_31_dec) + eci_eig + herfindahl + krugman +  indeg + outdeg + betw "
 
 # fix effects
 fixed <- plm(frml, data = df_towns2, model = "within", efect = "twoway")
@@ -256,7 +256,7 @@ lmtest::bptest(
 # p < 0.05 means there is heteroskedasticity. Need to use robust covariance matrix
 
 lmtest::coeftest(
-  fixed_time, vcovHC(twoway, type = "HC4", method = "arellano", cluster = "time")) |>
+  twoway, vcovHC(twoway, type = "HC4", method = "arellano", cluster = "time")) |>
   broom::tidy() |>
   mutate(p_value = ifelse(p.value < 0.05, "p value < 0.05", "p value > 0.05")) |>
   mutate(term = as_factor(term) |> fct_rev()) |>
@@ -295,21 +295,21 @@ a <- fin |>
   theme(legend.position = "bottom", legend.title.position = "top",
         legend.key.width = unit(5,"mm"), legend.key.height = unit(1,"mm"))
 
-b <- ggplot(as_tibble(df_towns2), aes(year, rank_mor)) +
+b <- ggplot(as_tibble(df_towns2), aes(year, eci_eig)) +
   geom_path(aes(group = towns, color = diversity), size = 0.1) +
-  scale_y_reverse() + scico::scale_color_scico("Diversity based on RCA", palette = "roma") +
-  labs(tag = "B", y = "Rank ECI by method of reflections", x = 'Year') +
+  scico::scale_color_scico("Diversity based on RCA", palette = "roma") +
+  labs(tag = "B", y = "Knowledge complexity", x = 'Year') +
   theme_light(base_size = 6) +
   theme(legend.position = "bottom", legend.title.position = "top",
         legend.key.width = unit(5,"mm"), legend.key.height = unit(1,"mm"))
 
 c <- lmtest::coeftest(
-  fixed_time, vcovHC(twoway, type = "HC4", method = "arellano", cluster = "time")) |>
+  twoway, vcovHC(twoway, type = "HC4", method = "arellano", cluster = "time")) |>
   broom::tidy() |>
   # beautify names
   mutate(term = case_when(
     term == "log10(population_31_dec)" ~ "Population [log10]",
-    term == "rank_mor" ~ "Rank of ECI [MOR]",
+    term == "eci_eig" ~ "Knowledge complexity",
     term == "indeg" ~ "In-degree",
     term == 'outdeg' ~ "Out-degree",
     term == "betw" ~ "Betweenness",
@@ -318,16 +318,16 @@ c <- lmtest::coeftest(
   )) |>
   mutate(p_value = ifelse(
     p.value > 0.05, "p value > 0.05",
-    ifelse(p.value < 0.01, "p value << 0.01", "0.05 > p value > 0.01"))) |>
-  mutate(term = as_factor(term) |> fct_rev()) |>
+    ifelse(p.value < 0.01, "p value << 0.01", "0.05 > p value > 0.01")) ) |>
+  mutate(term = as_factor(term) |> fct_rev(), p_value = as_factor(p_value)) |>
   ggplot(aes(estimate, term)) +
   geom_point(aes(color = p_value)) +
   geom_errorbarh(aes(xmin = estimate - std.error, xmax = estimate+std.error, color = p_value),
                  width = 0.15) +
   labs(tag = "C", y = "Regression term", x = "Estimate", title = "Proportion of outmigration") +
-  scale_color_manual("Significance", values = c("purple", "grey40")) +
+  scale_color_manual("Significance", values = c("#0066ff", "#ff3300", "grey40")) +
   theme_light(base_size = 6) + theme(legend.position = 'bottom')
-
+c
 
 ggsave(
   filename = "fig4_regression.png", device = "png", path = "paper/figs/",
@@ -338,7 +338,7 @@ ggsave(
 #### left overs: ideas for SM ####
 
 df_towns2 |> as_tibble() |>
-  select(starts_with("eci_"), diversity, shannon) |>
+  select(starts_with("eci_"), diversity, shannon, krugman, herfindahl) |>
   mutate(eci_svd = log1p(eci_svd)) |>
   GGally::ggpairs()
 

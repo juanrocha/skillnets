@@ -79,7 +79,8 @@ swe2 <- swe2 |>
   group_by(municipality) |>
   ## Do we need to rescale to proportion of the popoulation per place?
   #mutate(prop_jobs = jobs / sum(jobs)) |>
-  arrange(municipality) |> mutate(municipality = as_factor(municipality)) |>
+  arrange(municipality) |>
+  mutate(municipality = as_factor(municipality)) |>
   arrange(onet_soc) |> mutate(onet_soc = as_factor(onet_soc))
   #ggplot(aes(municipality, onet_soc)) + geom_tile(aes(fill = prop_jobs)) + theme(axis.text = element_blank())
   #pivot_wider(names_from = onet_soc, values_from = ppl_2009, values_fn = sum)
@@ -148,21 +149,27 @@ e_skills <- svd(M_skills)
 
 df_jobs <- tibble(
   jobs = rownames(swe_mat),
-  eci_mor = mort(t(swe_mat)),
-  herfindahl = herfindahl(swe_mat), krugman = krugman_index(swe_mat),
-  diversity = EconGeo::diversity(rca01)
+  eci_mor = mort(t(rca01)),
+  eci_eig = kci(rca01),
+  herfindahl = herfindahl(swe_mat),
+  krugman = krugman_index(swe_mat),
+  diversity = EconGeo::diversity(rca01),
+  shannon= entropy((swe_mat))
 ) |> arrange(desc(eci_mor)) |>
   left_join(
     tibble(
       jobs = colnames(M_jobs)[order(colSums(M_jobs))],
-      eci_svd = ( e_jobs$d - mean(e_jobs$d)) / sd(e_jobs$d)
+      svd = ( e_jobs$d - mean(e_jobs$d)) / sd(e_jobs$d)
     )
-  ) |> mutate(
-    rank_mor = order(eci_mor), rank_svd = order(eci_svd)
+  ) |> mutate(eci_mor = ((eci_mor - mean(eci_mor))/ sd(eci_mor)),
+    rank_mor = order(eci_mor), rank_svd = order(svd)
   )
 
 ggplot(df_jobs) +
-  geom_point(aes(rank_mor, rank_svd))
+  geom_point(aes(rank_mor, rank_svd, color = shannon))
+
+ggplot(df_jobs, aes(eci_mor,eci_eig)) +
+  geom_point(aes(color = krugman))
 
 #### Occupations space ####
 ## Matrix for Sweden: logtransform because of the long tails
@@ -183,7 +190,7 @@ job_mat <- swe2 |>
   select(-municipality) |>
   as.matrix()
 
-dimnames(job_mat) # nrow 291 municipalities, ncol 149 jobs
+dimnames(job_mat) # nrow 291 municipalities, ncol 139 jobs
 #image(job_mat)
 rownames(job_mat) <- swe2$municipality |> unique()
 rowSums(job_mat) |> as.logical() |> all()
@@ -198,6 +205,8 @@ phi <- herfindahl(job_mat)
 # w <- rca01 %*% phi / colSums(phi)
 M_jobs2 <- relatedness(t(rca) %*% rca, method = "prob")# jobs given their geography, not skills
 M_towns <-  relatedness(rca %*% t(rca), method = "prob")
+
+#relatedness_density(rca, M_jobs2) |> image()
 
 ## SVD: singular value decomposition method
 d_jobs <- svd(M_jobs2)
@@ -215,25 +224,35 @@ spectralGP::image_plot(
 df_jobs2 <- tibble(
   jobs = colnames(M_jobs2),
   eci_mor = mort((rca)),
-  herfindahl = herfindahl(t(job_mat)), krugman = krugman_index(t(job_mat)),
-  diversity = EconGeo::diversity(rca01)
+  eci_eig = kci(t(rca)),
+  herfindahl = herfindahl(t(job_mat)),
+  krugman = krugman_index(t(job_mat)),
+  diversity = EconGeo::diversity(t(rca)),
+  shannon = entropy(t(job_mat))
 ) |> arrange(desc(eci_mor)) |>
   left_join(
     tibble(
-      jobs = colnames(M_jobs2)[order(rowSums(M_jobs2), decreasing = TRUE)],
-      eci_svd = ( d_jobs$d - mean(d_jobs$d)) / sd(d_jobs$d)
+      jobs = colnames(M_jobs2)[order(rowSums(M_jobs2))],
+      svd = ( d_jobs$d - mean(d_jobs$d)) / sd(d_jobs$d)
     )
   ) |>
-  mutate(rank_mor = order(eci_mor), rank_svd = order(eci_svd))
+  mutate(eci_mor = ((eci_mor - mean(eci_mor))/ sd(eci_mor)),
+    rank_mor = order(eci_mor), rank_eig = order(eci_eig),
+    rank_svd = order(svd))
 
 
 df_jobs2 |>
-  ggplot(aes(rank_mor, rank_svd)) +
-  geom_point(aes(color = diversity))
+  ggplot(aes(rank_eig, rank_svd)) +
+  geom_point(aes(color = shannon ))
+
+df_jobs2 |>
+  ggplot(aes(eci_mor, diversity)) +
+  geom_point(aes(color = herfindahl))
 
 cor(df_jobs2$rank_mor, df_jobs2$rank_svd)
 
-
+## J260314: I think it is correct. Rare jobs tend to have RCA in rare towns, in big towns being a hairdresser does not provide comparative advantage.
+##
 
 ## plot the transition probability of jobs:
 # spectralGP::image_plot(
@@ -245,21 +264,28 @@ df_towns <- tibble(
   towns = rownames(job_mat) |> str_remove(pattern = "\\d{4} ") ,
   shannon = entropy((job_mat)), # the matrix was on log units, needs to be exp
   eci_mor = mort(t(rca)),
-  diversity = EconGeo::diversity(rca),
-  herfindahl = herfindahl(job_mat), krugman = krugman_index(job_mat)
+  eci_eig = kci(rca),
+  diversity = EconGeo::diversity(rca)/nrow(rca),
+  herfindahl = herfindahl(job_mat),
+  krugman = krugman_index(job_mat)
 ) |> arrange(desc(eci_mor)) |>
   left_join(
     tibble(
-      towns = str_remove(rownames(job_mat), pattern = "\\d{4} ")[order(colSums(M_towns), decreasing = TRUE)],
-      eci_svd = (d_towns$d - mean(d_towns$d) / sd(d_towns$d))
+      towns = str_remove(rownames(job_mat), pattern = "\\d{4} ")[order(colSums(M_towns))],
+      svd = (d_towns$d - mean(d_towns$d) / sd(d_towns$d))
     )
   ) |>
-  mutate(rank_mor = order(eci_mor), rank_svd = order(eci_svd, decreasing = TRUE))
+  mutate(eci_mor = ((eci_mor - mean(eci_mor))/ sd(eci_mor)),
+    rank_mor = order(eci_mor), rank_svd = order(svd))
 
 df_towns |>
   ggplot(aes(rank_svd, rank_mor)) +
-  geom_point(aes(color = shannon, alpha = eci_svd > 0)) +
+  geom_point(aes(color = eci_eig)) +
   scale_color_viridis_c()
+
+## Ask Baland, no idea why:
+df_towns |> ggplot(aes(eci_eig, eci_mor)) +
+  geom_point(aes( color = diversity))
 
 save(df_towns, df_jobs, df_jobs2, file = "data/Sweden/ECI_Sweden.Rda")
 
@@ -318,7 +344,35 @@ save(df_towns, df_jobs, df_jobs2, file = "data/Sweden/ECI_Sweden.Rda")
 #
 # dim(w)
 
-#### map ####
+#### Figures ####
+a <- df_towns |> ggplot(aes(shannon, eci_eig)) +
+  geom_point(aes(color = diversity)) +
+  scale_color_viridis_c("Diversity (proportion)", n.breaks = 4) +
+  labs(tag = "A", x = "Shannon diversity", y = "Knowledge complexity") +
+  theme_light(base_size = 6) +
+  theme(legend.position.inside = c(0.4, 0.85), legend.position = "inside",
+        legend.key.width = unit(5,"mm"), legend.key.height = unit(2,"mm"),
+        legend.direction = "horizontal", legend.title.position = "top",
+        legend.key.spacing.x = unit(0.5,'mm'), legend.key.spacing.y = unit(0.5,'mm'),
+        legend.box.background = element_blank())
+a
+b <- df_towns |> ggplot(aes(krugman, eci_eig)) +
+  geom_point(aes(color = diversity), show.legend = FALSE) +
+  scale_color_viridis_c() +
+  labs(tag = "B", x = "Krugman index", y = "Knowledge complexity") +
+  theme_light(base_size = 6)
+
+
+c <- df_towns |> ggplot(aes(herfindahl, eci_eig)) +
+  geom_point(aes(color = diversity), show.legend = FALSE) +
+  scale_color_viridis_c("Diversity [RCA > 1]") +
+  labs(tag = "C", x = "Herfindahl-Hirschman Index", y = "Knowledge complexity") +
+  theme_light(base_size = 6)
+
+(a+b+c)
+
+
+#### map ######## map ###diversity#
 swe_map <- st_read("~/Documents/Projects/DATA/GADM_maps/gadm40_SWE_shp/gadm40_SWE_2.shp")
 
 df_towns <- df_towns |>
@@ -334,20 +388,20 @@ df_towns <- df_towns |>
     .default = towns
   ))
 
-a <- swe_map |>
+d <- swe_map |>
   left_join(df_towns, by = c("NAME_2" = "towns")) |>
   ggplot() +
-  geom_sf(aes(fill = shannon), linewidth = 0.01) +
+  geom_sf(aes(fill = eci_eig), linewidth = 0.01) +
   geom_sf(data = swe_map |> filter(NAME_2 == "Kiruna"), color = "orange", fill = NA, linewidth = 0.5) +
-  scale_fill_viridis_c(name = "Shannon diversity") +
-  labs(tag = "A") + #scale_x_continuous(n.breaks = 2) +
+  scale_fill_gradient2(name = "Knowledge complexity", midpoint = 0, mid = "grey84") +
+  labs(tag = "D") + #scale_x_continuous(n.breaks = 2) +
   theme_light(base_size = 6) +
   theme(legend.title.position = "top",
         legend.position = "bottom",
         legend.key.width = unit(5,"mm"),
         legend.key.height = unit(2, "mm"))
         #plot.background = element_rect(fill = "#191919"))
-a
+d
 # ggsave(filename = "img/sweden_diversity.png", device = "png", width = 3, height = 4.5, dpi = 500, bg = NULL)
 
 #### Network ####
@@ -368,12 +422,12 @@ nat_profs <- c(
 
 ## network given relatedness / proximity in geography
 net <- graph_from_adjacency_matrix(
-  (M_jobs2 > quantile(M_jobs2,0.90) ), "undirected")
+  (M_jobs2 > quantile(M_jobs2,0.9) ), "undirected")
 
 edge_density(net)
 
 net$weight <-  M_jobs2
-V(net)$eci_svd <- df_jobs2 |> arrange(jobs) |> pull(eci_svd) > 0
+V(net)$eci_eig <- df_jobs2 |> arrange(jobs) |> pull(eci_eig) > 0
 V(net)$Kiruna <- rca[290,] |> as.logical() # Kiruna
 V(net)$name <- colnames(M_jobs2)
 V(net)$nat_prof <- colnames(M_jobs2) %in% nat_profs
@@ -383,7 +437,7 @@ lyt <- layout_nicely(net)
 sig <- sigmaFromIgraph(net, lyt) |>
   addEdgeSize(oneSize = 0.5) |>
   addEdgeColors(oneColor = "#e1e0df") |>
-  addNodeColors(colorAttr = "eci_svd", colorPal = "Paired") |>
+  addNodeColors(colorAttr = "eci_eig", colorPal = "Paired") |>
   addNodeSize(oneSize = 2)
 
 sig
@@ -392,7 +446,7 @@ sig
 
 ## network of jobs given the places where they occur
 plot.igraph(
-  net, layout = lyt, vertex.color = ifelse(V(net)$eci_svd, "#f1a340", alpha("grey50", 0.5)),
+  net, layout = lyt, vertex.color = ifelse(V(net)$eci_eig, "#f1a340", alpha("grey50", 0.5)),
   vertex.size =  ifelse(V(net)$Kiruna, 5, 3),
   vertex.label = NA, vertex.frame.color = ifelse(V(net)$name %in% nat_profs, "red", NA),
   vertex.alpha = 0.5, edge.width = 0.5)
@@ -416,7 +470,7 @@ plot.igraph(
 skill_net <- graph_from_adjacency_matrix(
   (M_jobs > quantile(M_jobs, 0.9) ), "undirected")
 skill_net$weight <-  M_jobs
-V(skill_net)$eci_svd <- df_jobs |> arrange(jobs) |> pull(eci_svd) > 0
+V(skill_net)$eci_eig <- df_jobs |> arrange(jobs) |> pull(eci_eig) > 0
 V(skill_net)$eci_mor <- df_jobs |> arrange(jobs) |> pull(eci_mor) > 0
 V(net)$Kiruna <- rca[290,] |> as.logical() # Kiruna
 V(skill_net)$name <- profs
@@ -437,13 +491,14 @@ sig
 ## network of jobs given the skills
 plot.igraph(
   skill_net, layout = lyt2,
-  vertex.color = ifelse(V(skill_net)$eci_mor, "#f1a340", alpha("grey50", 0.5)),
+  vertex.color = ifelse(V(skill_net)$eci_eig, "#f1a340",
+                        alpha("grey50", 0.5)),
   vertex.size = 3,
   vertex.label = NA,
   vertex.frame.color = ifelse(V(skill_net)$name %in% nat_profs, "red", NA),
   vertex.alpha = 0.5, edge.width = 0.5)
 
-b <- ggplot(skill_net, aes(x = x, y = y, xend = xend, yend = yend), layout = lyt2 ) +
+e <- ggplot(skill_net, aes(x = x, y = y, xend = xend, yend = yend), layout = lyt2 ) +
   geom_edges(color = "grey50", alpha = 0.15, linewidth = 0.25) +
   geom_nodes(
     aes(fill = prop_towns, color = nat_prof),
@@ -452,15 +507,15 @@ b <- ggplot(skill_net, aes(x = x, y = y, xend = xend, yend = yend), layout = lyt
   #scale_size_manual("Inari \n ECI > 0", values = c(2,3)) +
   scale_fill_viridis_c("Proportion of towns\nwith RCA > 1", option="E") +
   scale_color_manual("Natural resources\ndependent occupations",values = c("grey50" , "red")) + guides(alpha = "none") +
-  labs(tag = "B") + coord_fixed() +
+  labs(tag = "E") + coord_fixed() +
   theme_void(base_size = 6) +
   theme(legend.position = "bottom", legend.title.position = "top",
         legend.key.height = unit(2,"mm"),
         legend.key.width = unit(5,'mm'))
 
-b
+e
 
-c <- ggplot(skill_net, aes(x = x, y = y, xend = xend, yend = yend), layout = lyt2 ) +
+f <- ggplot(skill_net, aes(x = x, y = y, xend = xend, yend = yend), layout = lyt2 ) +
   geom_edges(color = "grey50", alpha = 0.15, linewidth = 0.25) +
   geom_nodes(
     aes(fill = Kiruna, color = nat_prof),
@@ -470,17 +525,19 @@ c <- ggplot(skill_net, aes(x = x, y = y, xend = xend, yend = yend), layout = lyt
   #scale_fill_viridis_c("Proportion of towns with RCA > 1") +
   scale_fill_manual("Kiruna: RCA > 0",values = c( "grey50", "#f1a340")) +
   scale_color_manual("Natural resources\ndependent occupations",values = c("grey" , "red")) + guides(alpha = "none", color = "none") +
-  labs(tag = "C") + coord_fixed() +
+  labs(tag = "F") + coord_fixed() +
   theme_void(base_size = 6) +
   theme(legend.position = "bottom", legend.title.position = "top")
-c
+f
 
-a+b+c + plot_layout(guides="collect", widths = c(1.2, 1,1)) & theme(legend.position = "bottom")
+
+(a+b+c) / (d+e+f + plot_layout(guides="collect", widths = c(1.2, 1,1)) & theme(legend.position = "bottom")) + plot_layout(heights = c(1, 1.5))
 
 ggsave(
   filename = "fig2_sweden.png", path = "paper/figs/",
-  plot = (a+b+c+ plot_layout(guides="collect", widths = c(1.2, 1,1)) ), device = "png", bg = "white", dpi = 400,
-  width = 7, height = 3
+  plot = (a+b+c) / (d+e+f + plot_layout(guides="collect", widths = c(1.2, 1,1)) & theme(legend.position = "bottom")) + plot_layout(heights = c(1, 1.5)),
+  device = "png", bg = "white", dpi = 400,
+  width = 6, height = 5
 )
 
 #### Tests ####

@@ -4,6 +4,14 @@ author: "Juan Rocha"
 output: html_document
 ---
 
+**260313**
+
+[] Check if ECI mor is z-transformed; I believe I'm doing it for ECI_svd, not for ECI_mor
+[] Check for consistency across all country calculations:
+  - use log1p on population
+  - use rca to calculate diversity and ECI with method of reflections and eigenvector method
+  - use raw matrix (job_mat?) in shannon, krugman, and herfindahl indexes
+
 **250630**
 
 - Finland: normalize number of workers, either log or compute the proportion normalized by population per city.

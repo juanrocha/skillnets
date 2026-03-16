@@ -83,7 +83,7 @@ job_mat <- dat |>
 
 ## rows are noc_codes in ascending order, 4 digits.
 
-dim(job_mat) # 162 census regions, 162 professions left
+dim(job_mat) # 162 census regions, 160 professions left
 rownames(job_mat) <- dat$noc_code
 colnames(job_mat)
 
@@ -129,25 +129,29 @@ e_skills <- svd(M_skills)
 
 df_jobs <- tibble(
   jobs = rownames(can_mat),
-  eci_mor = mort(t(can_mat)),
-  herfindahl = herfindahl(can_mat), krugman = krugman_index(can_mat),
-  diversity = EconGeo::diversity(rca01)
+  eci_mor = mort(t(rca01)),
+  eci_eig = kci(rca01),
+  herfindahl = herfindahl(can_mat),
+  krugman = krugman_index(can_mat),
+  diversity = EconGeo::diversity(rca01)/nrow(rca01),
+  shannon = entropy(can_mat)
 ) |> arrange(desc(eci_mor)) |>
   left_join(
     tibble(
       jobs = colnames(M_jobs)[order(colSums(M_jobs))],
-      eci_svd = ( e_jobs$d - mean(e_jobs$d)) / sd(e_jobs$d)
+      svd = ( e_jobs$d - mean(e_jobs$d)) / sd(e_jobs$d)
     )
+  ) |> mutate(eci_mor = ((eci_mor - mean(eci_mor))/ sd(eci_mor)),
+              rank_mor = order(eci_mor), rank_svd = order(svd)
   )
 
 ggplot(df_jobs) +
-  geom_point(aes(eci_mor, eci_svd)) +
-  scale_y_continuous(trans = "log1p")
+  geom_point(aes(eci_mor, eci_eig)) #+  scale_y_continuous(trans = "log1p")
 
 
 #### Occupations space ####
 ## RCA ##
-job_mat <- t(job_mat)
+job_mat <- t(job_mat) # towns in rows, jobs in columns
 rca <- location_quotient(job_mat, binary = TRUE)
 
 ## Effective use = phi or theta aka proximity
@@ -170,22 +174,27 @@ spectralGP::image_plot(
   nlevel = 10, legend.width = 0.025, col = hcl.colors(10, "YlOrRd", rev = TRUE))
 
 df_jobs2 <- tibble(
-  jobs = colnames(job_mat),
+  jobs = colnames(job_mat) ,
   eci_mor = mort((rca)),
-  herfindahl = herfindahl(t(job_mat)), krugman = krugman_index(t(job_mat))
+  eci_eig = kci(t(rca)),
+  herfindahl = herfindahl(t(job_mat)),
+  krugman = krugman_index(t(job_mat)),
+  diversity = diversity(t(rca)) / ncol(rca),
+  shannon = entropy(t(job_mat))
 ) |> arrange(desc(eci_mor)) |>
   left_join(
     tibble(
-      jobs = colnames(M_jobs2)[order(rowSums(M_jobs2), decreasing = TRUE)],
-      eci_svd = ( d_jobs$d - mean(d_jobs$d)) / sd(d_jobs$d)
+      jobs = colnames(M_jobs2)[order(rowSums(M_jobs2))],
+      svd = ( d_jobs$d - mean(d_jobs$d)) / sd(d_jobs$d)
     )
-  ) |>
-  mutate(rank_mor = order(eci_mor), rank_svd = order(eci_svd))
+  ) |> mutate(eci_mor = ((eci_mor - mean(eci_mor))/ sd(eci_mor)),
+              rank_mor = order(eci_mor), rank_svd = order(svd)
+  )
 
 
 df_jobs2 |>
-  ggplot(aes(rank_mor, rank_svd)) +
-  geom_point(aes(color = eci_svd > 0))
+  ggplot(aes(eci_mor, eci_eig)) +
+  geom_point(aes(color = eci_mor > 0))
 
 cor(df_jobs2$rank_mor, df_jobs2$rank_svd)
 
@@ -200,22 +209,26 @@ df_towns <- tibble(
   towns = rownames(job_mat) ,
   shannon = entropy(((job_mat))), # the matrix was on log units, needs to be exp
   eci_mor = mort(t(rca)),
-  herfindahl = herfindahl(job_mat), krugman = krugman_index(job_mat)
+  eci_eig = kci(rca),
+  herfindahl = herfindahl(job_mat),
+  krugman = krugman_index(job_mat),
+  diversity = diversity(rca)/nrow(rca)
 ) |> arrange(desc(eci_mor)) |>
   left_join(
     tibble(
-      towns = rownames(job_mat) [order(rowSums(M_towns), decreasing = TRUE)],
-      eci_svd = (d_towns$d - mean(d_towns$d) / sd(d_towns$d))
+      towns = rownames(job_mat) [order(rowSums(M_towns))],
+      svd = (d_towns$d - mean(d_towns$d) / sd(d_towns$d))
     )
-  ) |>
-  mutate(rank_mor = order(eci_mor), rank_svd = order(eci_svd))
+  )|> mutate(eci_mor = ((eci_mor - mean(eci_mor))/ sd(eci_mor)),
+             rank_mor = order(eci_mor), rank_svd = order(svd)
+  )
 
 df_towns |>
-  ggplot(aes(rank_svd, rank_mor)) +
-  geom_point(aes(color = shannon, alpha = eci_svd > 0)) +
+  ggplot(aes(eci_eig, eci_mor)) +
+  geom_point(aes(color = shannon)) +
   scale_color_viridis_c()
 
-cor.test(df_towns$eci_mor, df_towns$eci_svd, method = "spearman")
+#cor.test(df_towns$eci_mor, df_towns$eci_svd, method = "spearman")
 
 df_towns |>
   ggplot(aes(rank_mor, shannon)) +
@@ -243,6 +256,36 @@ towns <- df_towns$towns
 
 #save(df_towns, df_jobs, df_jobs2, file = "data/Canada/ECI_Canada.Rda")
 
+#### Figures ####
+
+a <- df_towns |> ggplot(aes(shannon, eci_mor)) +
+  geom_point(aes(color = diversity)) +
+  scale_color_viridis_c("Diversity (proportion)", n.breaks = 4) +
+  labs(tag = "A", x = "Shannon diversity", y = "Knowledge complexity") +
+  theme_light(base_size = 6) +
+  theme(legend.position.inside = c(0.4, 0.85), legend.position = "inside",
+        legend.key.width = unit(5,"mm"), legend.key.height = unit(2,"mm"),
+        legend.direction = "horizontal", legend.title.position = "top",
+        legend.key.spacing.x = unit(0.5,'mm'), legend.key.spacing.y = unit(0.5,'mm'),
+        legend.box.background = element_blank())
+a
+b <- df_towns |> ggplot(aes(krugman, eci_mor)) +
+  geom_point(aes(color = diversity), show.legend = FALSE) +
+  scale_color_viridis_c() +
+  labs(tag = "B", x = "Krugman index", y = "Knowledge complexity") +
+  theme_light(base_size = 6)
+
+
+c <- df_towns |> ggplot(aes(herfindahl, eci_mor)) +
+  geom_point(aes(color = diversity), show.legend = FALSE) +
+  scale_color_viridis_c("Diversity [RCA > 1]") +
+  labs(tag = "C", x = "Herfindahl-Hirschman Index", y = "Knowledge complexity") +
+  theme_light(base_size = 6)
+
+(a+b+c)
+
+
+
 #### Maps ####
 ## slow plotting in RStudio: https://forum.posit.co/t/ggplot2-geom-sf-performance/3251/3
 ## and: https://github.com/tidyverse/ggplot2/issues/2655
@@ -256,36 +299,36 @@ options(bitmapType = "cairo")
 ## networks.
 # library(rgdal)
 # lyrs <- ogrListLayers("~/Documents/Projects/DATA/GADM_maps/gadm41_CAN.gpkg")
-can0 <- st_read("~/Documents/Projects/DATA/GADM_maps/gadm41_CAN.gpkg", layer = "ADM_ADM_1")
-# can0 <- st_read("data/Canada/lpr_000b21a_e/lpr_000b21a_e.shp")
+#can0 <- st_read("~/Documents/Projects/DATA/GADM_maps/gadm41_CAN.gpkg", layer = "ADM_ADM_1")
+can0 <- st_read("data/Canada/lpr_000b21a_e/lpr_000b21a_e.shp")
 can <- st_read("data/Canada/lcma000b21a_e/lcma000b21a_e.shp")
 can
 
-tic()
-can0 |> #st_transform(crs = terra::crs(can)) |>
-  ggplot() +
-  geom_sf(fill = NULL)
-toc() # 266.554 sec elapsed incredibly slow | 3s in external quartz
+# tic()
+# can0 |> #st_transform(crs = terra::crs(can)) |>
+#   ggplot() +
+#   geom_sf(fill = NULL)
+# toc() # 266.554 sec elapsed incredibly slow | 3s in external quartz
+
+# tic()
+# can |>
+#   left_join(df_towns, by = c("DGUID" = "dguid")) |>
+#   tmap::tm_shape() +
+#   tmap::tm_polygons(
+#     fill = "eci_svd",
+#     fill.scale = tmap::tm_scale_continuous(
+#       limits = c(10, 60),
+#       values = "scico.hawaii") )
+# toc() #95s in normal RStudio
 
 tic()
-can |>
-  left_join(df_towns, by = c("DGUID" = "dguid")) |>
-  tmap::tm_shape() +
-  tmap::tm_polygons(
-    fill = "eci_svd",
-    fill.scale = tmap::tm_scale_continuous(
-      limits = c(10, 60),
-      values = "scico.hawaii") )
-toc() #95s in normal RStudio
-
-tic()
-a <- can |>
+d <- can |>
   left_join(df_towns, by = c("DGUID" = "dguid")) |>
   ggplot() +
   geom_sf(data =  can0 |> st_transform(crs = terra::crs(can)), fill = NA) +
-  geom_sf(aes(fill = shannon), show.legend = TRUE) +
-  scale_fill_viridis_c(name = "Shannon diversity") +
-  labs(tag = "A") + #scale_x_continuous(n.breaks = 2) +
+  geom_sf(aes(fill = eci_mor), show.legend = TRUE) +
+  scale_fill_gradient2(name = "Knowledge complexity" , midpoint = 0, mid = "grey84") +
+  labs(tag = "D") +
   theme_light(base_size = 6) +
   theme(legend.title.position = "top",
         legend.position = "bottom",
@@ -330,13 +373,13 @@ nat_profs <- c(
 
 ## network given relatedness / proximity in geography
 net <- graph_from_adjacency_matrix(
-  (M_jobs2 > quantile(M_jobs2,0.90) ), "undirected")
+  (M_jobs2 > quantile(M_jobs2, 0.90) ), "undirected")
 
 
 edge_density(net)
 
 net$weight <-  M_jobs2
-V(net)$eci_svd <- df_jobs2 |> arrange(jobs) |> pull(eci_svd) > 0
+V(net)$eci_mor <- df_jobs2 |> arrange(jobs) |> pull(eci_mor) > 0
 V(net)$st_johns <- rca[127,] |> as.logical() # St. John's New Founland
 V(net)$name <- canada_noc |>
   filter(code_noc_2021_v1_0 %in% colnames(M_jobs2)) |>
@@ -362,49 +405,49 @@ plot.igraph(
   vertex.alpha = 0.5, edge.width = 0.5)
 
 
-b <- ggplot(net, aes(x = x, y = y, xend = xend, yend = yend), layout = lyt ) +
+e <- ggplot(net, aes(x = x, y = y, xend = xend, yend = yend), layout = lyt ) +
   geom_edges(color = "grey50", alpha = 0.15, linewidth = 0.25) +
   geom_nodes(
     aes(fill = prop_towns, color = nat_prof),
     shape = 21, show.legend = TRUE, size = 1, alpha = 0.8) +
-  #scale_alpha_manual(values = c(0.5,1)) +
-  #scale_size_manual("Inari \n ECI > 0", values = c(2,3)) +
   scale_fill_viridis_c("Proportion of towns\nwith RCA > 1", option="E") +
   scale_color_manual("Natural resources\ndependent occupations",values = c("grey50" , "red")) +
   guides(alpha = "none") +
-  labs(tag = "B") + coord_fixed() +
+  labs(tag = "E") + coord_fixed() +
   theme_void(base_size = 6) +
   theme(legend.position = "bottom", legend.title.position = "top",
         legend.key.height = unit(2,"mm"),
         legend.key.width = unit(5,'mm'))
 
-b
 
-c <- ggplot(net, aes(x = x, y = y, xend = xend, yend = yend), layout = lyt ) +
+f <- ggplot(net, aes(x = x, y = y, xend = xend, yend = yend), layout = lyt ) +
   geom_edges(color = "grey50", alpha = 0.15, linewidth = 0.25) +
   geom_nodes(
     aes(fill = st_johns, color = nat_prof),
     shape = 21, show.legend = TRUE, size = 1, alpha = 0.8) +
-  #scale_alpha_manual(values = c(0.5,1)) +
-  #scale_size_manual("Kiruna \n ECI > 0", values = c(2,3)) +
-  #scale_fill_viridis_c("Proportion of towns with RCA > 1") +
   scale_fill_manual("St. John's: RCA > 0", values = c( "grey50", "#f1a340")) +
   scale_color_manual("Natural resources\ndependent occupations",values = c("grey" , "red")) +
   guides(alpha = "none", color = "none") +
-  labs(tag = "C") + coord_fixed() +
+  labs(tag = "F") + coord_fixed() +
   theme_void(base_size = 6) +
   theme(legend.position = "bottom", legend.title.position = "top")
-c
 
 
-a+b+c + plot_layout(guides="collect", widths = c(1.2, 1,1)) & theme(legend.position = "bottom")
+
+# a+b+c + plot_layout(guides="collect", widths = c(1.2, 1,1)) & theme(legend.position = "bottom")
+#
+# ggsave(
+#   filename = "fig3_canada.png", path = "img/",
+#   plot = (a+b+c+ plot_layout(guides="collect", widths = c(1.2, 1,1)) ), device = "png", bg = "white", dpi = 400,
+#   width = 7, height = 2.5
+# )
 
 ggsave(
-  filename = "fig3_canada.png", path = "img/",
-  plot = (a+b+c+ plot_layout(guides="collect", widths = c(1.2, 1,1)) ), device = "png", bg = "white", dpi = 400,
-  width = 7, height = 2.5
+  filename = "fig3_canada.png", path = "paper/figs/",
+  plot = (a+b+c) / (d+e+f + plot_layout(guides="collect", widths = c(1.2, 1,1)) & theme(legend.position = "bottom")) + plot_layout(heights = c(1, 1.5)),
+  device = "png", bg = "white", dpi = 400,
+  width = 6, height = 5
 )
-
 
 
 
