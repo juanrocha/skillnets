@@ -451,6 +451,16 @@ V(skill_net)$nat_prof <- profs2 %in% nat_profs
 V(skill_net)$prop_towns <- rowSums(rca) / ncol(rca)
 lyt2 <- layout_nicely(skill_net)
 
+## for writing
+tibble(
+  profs = V(skill_net)$name,
+  eci = df_jobs |> arrange(jobs) |> pull(eci_eig),
+  inari = V(skill_net)$Inari,
+  prop_towns = V(skill_net)$prop_towns,
+  res = V(skill_net)$nat_prof,
+  deg = degree(skill_net)
+) |> filter (res == TRUE)
+
 ## network of jobs given the skills
 plot.igraph(
   skill_net, layout = lyt2,
@@ -663,7 +673,7 @@ d <- fin |>
     nameswe %in% df_towns$towns ~ nameswe,
     namefin %in% df_towns$towns ~ namefin
   )) |>
-  left_join(df_towns ) |>
+  left_join(df_towns ) |> #select(towns, nameswe, namefin, eci_eig) |> arrange(desc(eci_eig))
   ggplot() +
   geom_sf(aes(fill = eci_eig), linewidth = 0.01) +
   geom_sf(data = fin |> filter(namefin == "Inari"), color = "orange", fill = NA, linewidth = 0.5) +
@@ -677,14 +687,14 @@ d <- fin |>
         legend.key.height = unit(2, "mm"))
 d
 
-d2 <- d + geom_sf_label( data = (fin |>
+d + geom_sf_label( data = (fin |>
   terra::vect() |>
   terra::centroids() |>
   sf::st_as_sf()),
   aes(label = namefin), size = 3
 )
 
-plotly::ggplotly(d2)
+plotly::ggplotly(d)
 
 (a+b+c) / (d+e+f + plot_layout(guides="collect", widths = c(1.2, 1,1)) & theme(legend.position = "bottom")) + plot_layout(heights = c(1, 1.5))
 

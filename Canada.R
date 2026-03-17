@@ -39,9 +39,13 @@ dat$industry_sectors_north_american_industry_classification_system_naics_2017_23
 dat$statistics_3 |> unique() # keep "Count"
 dat$coordinate |> unique() # remove
 dat$symbol_11 |> unique() # from meta data, NA, ... means too unreliable
-dat$occupation_minor_group_national_occupational_classification_noc_2021_309a |>
+profs <- dat$occupation_minor_group_national_occupational_classification_noc_2021_309a |>
   unique() |> str_subset(pattern = "\\d{4}") |> #162 professions 4digit depth
   str_subset(pattern = "2021", negate = TRUE) # remove year 2021
+
+profs <- tibble(profs = profs) |>
+  mutate(code = str_sub(profs, 1L, 4L),
+         profs = str_sub(profs, 6L, -1L))
 
 tic() # free up memory
 dat <- dat |>
@@ -77,13 +81,13 @@ dat <- dat |>
   mutate(ppl = log1p(ppl)) |>
   pivot_wider(names_from = geo, values_from = ppl, values_fill = 0)
 
-job_mat <- dat |>
+job_mat <- dat |> # jobs in rows, location in columns
   select(-noc_code) |>
   as.matrix()
 
 ## rows are noc_codes in ascending order, 4 digits.
 
-dim(job_mat) # 162 census regions, 160 professions left
+dim(job_mat) # 162 professions, 160 regions, profs on the rows
 rownames(job_mat) <- dat$noc_code
 colnames(job_mat)
 
@@ -106,7 +110,7 @@ can_skills |> pivot_longer(2:last_col(), names_to = "skill", values_to = "value"
 
 # order of noc4 codes (jobs) is the same as previous matrix (ordered), skills
 # enter in the same order as original data.
-can_mat <- can_skills |>
+can_mat <- can_skills |> # jobs on rows, skills on columns
   select(-noc4) |>
   as.matrix()
 
@@ -129,25 +133,30 @@ e_skills <- svd(M_skills)
 
 df_jobs <- tibble(
   jobs = rownames(can_mat),
-  eci_mor = mort(t(rca01)),
-  eci_eig = kci(rca01),
+  eci_morc = morc((rca01)), eci_mort = mort(t(rca01)),
+  eci_kci = kci(rca01), eci_tci = tci(t(rca01)),
   herfindahl = herfindahl(can_mat),
   krugman = krugman_index(can_mat),
-  diversity = EconGeo::diversity(rca01)/nrow(rca01),
+  diversity = EconGeo::diversity(rca01),
   shannon = entropy(can_mat)
-) |> arrange(desc(eci_mor)) |>
+) |> arrange(desc(eci_mort)) |>
   left_join(
     tibble(
       jobs = colnames(M_jobs)[order(colSums(M_jobs))],
       svd = ( e_jobs$d - mean(e_jobs$d)) / sd(e_jobs$d)
     )
-  ) |> mutate(eci_mor = ((eci_mor - mean(eci_mor))/ sd(eci_mor)),
-              rank_mor = order(eci_mor), rank_svd = order(svd)
   )
 
 ggplot(df_jobs) +
-  geom_point(aes(eci_mor, eci_eig)) #+  scale_y_continuous(trans = "log1p")
+  geom_point(aes(eci_mort, eci_tci, color = shannon)) #+  scale_y_continuous(trans = "log1p")
 
+df_jobs |> select(starts_with("eci"), shannon, diversity) |>
+  GGally::ggpairs()
+
+df_jobs |> left_join(profs, by = c("jobs" = "code")) |>
+  arrange(desc(eci_morc))
+
+## morc and kci
 
 #### Occupations space ####
 ## RCA ##
@@ -175,26 +184,31 @@ spectralGP::image_plot(
 
 df_jobs2 <- tibble(
   jobs = colnames(job_mat) ,
-  eci_mor = mort((rca)),
-  eci_eig = kci(t(rca)),
+  eci_morc = morc(t(rca)) , eci_mort = mort((rca)),
+  eci_tci = tci((rca)), eci_kci = kci(t(rca)),
   herfindahl = herfindahl(t(job_mat)),
   krugman = krugman_index(t(job_mat)),
-  diversity = diversity(t(rca)) / ncol(rca),
+  diversity = diversity(t(rca)) ,
   shannon = entropy(t(job_mat))
-) |> arrange(desc(eci_mor)) |>
+) |> arrange(desc(eci_mort)) |>
   left_join(
     tibble(
       jobs = colnames(M_jobs2)[order(rowSums(M_jobs2))],
       svd = ( d_jobs$d - mean(d_jobs$d)) / sd(d_jobs$d)
     )
-  ) |> mutate(eci_mor = ((eci_mor - mean(eci_mor))/ sd(eci_mor)),
-              rank_mor = order(eci_mor), rank_svd = order(svd)
+  ) |> mutate(eci_mort = ((eci_mort - mean(eci_mort))/ sd(eci_mort)),
+              rank_mor = order(eci_mort), rank_svd = order(svd)
   )
 
+df_jobs2 |> select(starts_with("eci"), diversity, shannon, svd) |>
+  GGally::ggpairs() ## morc and kci
 
 df_jobs2 |>
-  ggplot(aes(eci_mor, eci_eig)) +
-  geom_point(aes(color = eci_mor > 0))
+  ggplot(aes(eci_mort, eci_tci)) +
+  geom_point(aes(color = diversity))
+
+df_jobs2 |> left_join(profs, by = c("jobs" = "code")) |>
+  arrange(desc(eci_mort)) |> select(starts_with("eci"), profs)
 
 cor(df_jobs2$rank_mor, df_jobs2$rank_svd)
 
@@ -208,32 +222,38 @@ cor(df_jobs2$rank_mor, df_jobs2$rank_svd)
 df_towns <- tibble(
   towns = rownames(job_mat) ,
   shannon = entropy(((job_mat))), # the matrix was on log units, needs to be exp
-  eci_mor = mort(t(rca)),
-  eci_eig = kci(rca),
+  eci_mort = mort(t(rca)), eci_morc = morc(rca),
+  eci_kci = kci(rca), eci_tci = tci(t(rca)),
   herfindahl = herfindahl(job_mat),
   krugman = krugman_index(job_mat),
-  diversity = diversity(rca)/nrow(rca)
-) |> arrange(desc(eci_mor)) |>
+  diversity = diversity(rca)
+) |> arrange(desc(eci_mort)) |>
   left_join(
     tibble(
       towns = rownames(job_mat) [order(rowSums(M_towns))],
       svd = (d_towns$d - mean(d_towns$d) / sd(d_towns$d))
     )
-  )|> mutate(eci_mor = ((eci_mor - mean(eci_mor))/ sd(eci_mor)),
-             rank_mor = order(eci_mor), rank_svd = order(svd)
   )
 
+df_towns |> select(starts_with("eci"), diversity, shannon, svd) |>
+  GGally::ggpairs() ## morc and kci
+
 df_towns |>
-  ggplot(aes(eci_eig, eci_mor)) +
+  ggplot(aes(eci_tci, eci_mort)) +
   geom_point(aes(color = shannon)) +
+  scale_color_viridis_c()
+
+df_towns |>
+  ggplot(aes( shannon ,eci_tci)) +
+  geom_point(aes(color = diversity)) +
   scale_color_viridis_c()
 
 #cor.test(df_towns$eci_mor, df_towns$eci_svd, method = "spearman")
 
 df_towns |>
-  ggplot(aes(rank_mor, shannon)) +
-  geom_point(aes(color = rank_svd)) +
-  geom_text(aes(label = ifelse(shannon< 5.8, towns, NA))) +
+  ggplot(aes(eci_mort, shannon)) +
+  geom_point(aes(color = svd)) +
+  geom_text(aes(label = ifelse(shannon< 5.8, towns, NA)), hjust = 0) +
   scale_color_viridis_c()
 
 df_towns <- df_towns |>
