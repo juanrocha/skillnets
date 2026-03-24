@@ -196,7 +196,7 @@ library(plm)
 df_towns2 <- pdata.frame(df_towns2, index = c("towns", "year"))
 head(df_towns2)
 
-frml <- "prop_outmig ~ log10(population_31_dec) + eci_eig + herfindahl + krugman +  indeg + outdeg + betw "
+frml <- "prop_outmig ~ log10(population_31_dec) + eci_eig + herfindahl + krugman +  indeg + outdeg + betw + lag(eci_eig,1) " # + log10(population_31_dec) * herfindahl
 
 # fix effects
 fixed <- plm(frml, data = df_towns2, model = "within", efect = "twoway")

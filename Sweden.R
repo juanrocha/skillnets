@@ -287,7 +287,7 @@ df_towns |>
 df_towns |> ggplot(aes(eci_eig, eci_mor)) +
   geom_point(aes( color = diversity))
 
-save(df_towns, df_jobs, df_jobs2, file = "data/Sweden/ECI_Sweden.Rda")
+save(df_towns, df_jobs, df_jobs2, skill_net, file = "data/Sweden/ECI_Sweden.Rda")
 
 # df_towns |>
 #   arrange(eci_mor) |>

@@ -166,6 +166,10 @@ These methods have limited capacity to scale up to larger regions, or updating t
 One of the goals of the present study is to explore if current public data sets enable the upscaling of resilience assessments.
 To that end, we present the results comparing previously studied cases [@Carson2016, @rocha2022] (Fig \ref{fig:map}) with the current labour and skills network analysis.
 
+**Computations**: All our analyses were performed using the R language for statistical computing [@Rlang].
+We benefit from the packages: `EconGeo` for measuring economic complexity [@baland], `tidyverse` for data wrangling [@tidyverse], `ggplot2` [@ggplot2], `broom` [@broom], `sf` [@pebesma2023], and `patchwork` [@patchwork] for visualizations, `igraph` [@antonov2023] and `statnet` [@butts2008] for network analyses, `plm` [@croissant2008] and `lmtest` [@lmtest] for panel regressions, and `pxweb` [@pxweb] for interacting with statistical bureaus APIs.
+All code necessary to reproduce the analysis is available at: <https://github.com/juanrocha/skillnets>
+
 # Results
 
 Across the three countries studied, we consistently found that knowledge complexity to be positively correlated with diversity (both Shannon index and diversity based on RCA), and negatively correlated with specialization and concentration (Figs \ref{fig:fin}, \ref{fig:swe}, \ref{fig:can} A-C), confirming previous observations in other data sets [@hidalgo2021].
@@ -291,7 +295,7 @@ This work has been supported through the Belmont Forum (Formas) grant 2019-02316
 \begin{figure*}[ht]
 \centering
 \includegraphics[width = 5in, height = 5in]{fig1_arctic_map}
-\caption{\textbf{Arctic case studies} The Arctic Resilience report \cite{Carson2016} and subsequent work \cite{rocha2022} provided a qualitative assessment of Arctic communities in the Arctic subject to different pressures. Here we compare their qualitative findings with a data drive approach based on public statistics on labour markets and skills diversity.}
+\caption[test caption]{\textbf{Arctic case studies} The Arctic Resilience report {\protect\cite{Carson2016}} and subsequent work {\protect\cite{rocha202xs2}} provided a qualitative assessment of Arctic communities in the Arctic subject to different pressures. Here we compare their qualitative findings with a data drive approach based on public statistics on labour markets and skills diversity.}
 \label{fig:map}
 \end{figure*}
 

@@ -274,11 +274,11 @@ df_towns <- df_towns |>
 
 towns <- df_towns$towns
 
-#save(df_towns, df_jobs, df_jobs2, file = "data/Canada/ECI_Canada.Rda")
+#save(df_towns, df_jobs, df_jobs2, net,file = "data/Canada/ECI_Canada.Rda")
 
 #### Figures ####
 
-a <- df_towns |> ggplot(aes(shannon, eci_mor)) +
+a <- df_towns |> ggplot(aes(shannon, eci_mort)) +
   geom_point(aes(color = diversity)) +
   scale_color_viridis_c("Diversity (proportion)", n.breaks = 4) +
   labs(tag = "A", x = "Shannon diversity", y = "Knowledge complexity") +
@@ -289,14 +289,14 @@ a <- df_towns |> ggplot(aes(shannon, eci_mor)) +
         legend.key.spacing.x = unit(0.5,'mm'), legend.key.spacing.y = unit(0.5,'mm'),
         legend.box.background = element_blank())
 a
-b <- df_towns |> ggplot(aes(krugman, eci_mor)) +
+b <- df_towns |> ggplot(aes(krugman, eci_mort)) +
   geom_point(aes(color = diversity), show.legend = FALSE) +
   scale_color_viridis_c() +
   labs(tag = "B", x = "Krugman index", y = "Knowledge complexity") +
   theme_light(base_size = 6)
 
 
-c <- df_towns |> ggplot(aes(herfindahl, eci_mor)) +
+c <- df_towns |> ggplot(aes(herfindahl, eci_mort)) +
   geom_point(aes(color = diversity), show.legend = FALSE) +
   scale_color_viridis_c("Diversity [RCA > 1]") +
   labs(tag = "C", x = "Herfindahl-Hirschman Index", y = "Knowledge complexity") +

@@ -152,7 +152,7 @@ fin_mat <- fin_onet |> ungroup() |>
   filter(title %in% profs2) |>
   select(-c(onet:title)) |>
   as.matrix()
-dim(fin_mat) # 300 occupations, 175 skills, bear in mind 293 unique onet occupations
+dim(fin_mat) # 303 occupations, 175 skills, bear in mind 293 unique onet occupations
 
 ## Missing values? : problem solved!
 prblm <- fin_onet |> filter(is.na(`Active Listening`)) #|>
@@ -461,6 +461,28 @@ tibble(
   deg = degree(skill_net)
 ) |> filter (res == TRUE)
 
+degree(skill_net) |> density() |> plot()
+ggplot() + geom_density(data = tibble(deg = degree(skill_net)), aes(deg))
+
+dist_skill <- vegan::vegdist(fin_mat, method = "bray") # 303 occupations
+dist_skill |> as.matrix() |> apply(1, FUN = mean)
+
+dist_net <- vegan::vegdist(M_jobs, method = "bray")
+
+
+tibble(
+  profs = fin_onet |> filter(title %in% profs2) |>pull(title),
+  mean_dist_skill = dist_skill |> as.matrix() |> apply(1, FUN = mean),
+  mean_dist_net = dist_net |> as.matrix() |> apply(1, FUN = mean)
+) |> left_join(
+  tibble(
+    profs = V(skill_net)$name,
+    bet = betweenness(skill_net)
+  )
+) |>
+  ggplot() +
+  geom_point(aes(mean_dist_skill, mean_dist_net, color = bet))
+
 ## network of jobs given the skills
 plot.igraph(
   skill_net, layout = lyt2,
@@ -668,6 +690,10 @@ df_towns$towns[!df_towns$towns %in% fin$nameswe] %in% fin$namefin
 
 load("~/Documents/Projects/MARAT/Arctic_QCA/data/coords.RData")
 
+# tic()
+# dist <- terra::distance(terra::vect(fin))
+# toc()
+
 d <- fin |>
   mutate(towns = case_when(
     nameswe %in% df_towns$towns ~ nameswe,
@@ -675,7 +701,7 @@ d <- fin |>
   )) |>
   left_join(df_towns ) |> #select(towns, nameswe, namefin, eci_eig) |> arrange(desc(eci_eig))
   ggplot() +
-  geom_sf(aes(fill = eci_eig), linewidth = 0.01) +
+  geom_sf(aes(fill = shannon), linewidth = 0.01) +
   geom_sf(data = fin |> filter(namefin == "Inari"), color = "orange", fill = NA, linewidth = 0.5) +
   scale_fill_gradient2(
     name = "Knowledge complexity", midpoint = 0, mid = "grey84") +
@@ -715,13 +741,13 @@ ggsave(
 # )
 
 
-save(df_towns, df_jobs, df_jobs2, file = "data/Finland/ECI_2019_Finland.Rda")
+save(df_towns, df_jobs, df_jobs2, skill_net, file = "data/Finland/ECI_2019_Finland.Rda")
 
 
 
 
 
- library(tmap)
+library(tmap)
 
 fin |>
   mutate(towns = case_when(
